@@ -54,7 +54,7 @@ export function InputArea(props: InputAreaProps): ReactNode {
 
   return (
     <box style={{ flexDirection: "row", flexShrink: 0, paddingLeft: 1, paddingRight: 1, marginTop: 1 }}>
-      <box style={{ width: "50%", flexShrink: 0, backgroundColor: theme.accent ?? "#3b82f6" }} />
+      <box style={{ width: 1, flexShrink: 0, backgroundColor: theme.accent ?? "#3b82f6" }} />
       <box style={{ flexDirection: "column", flexGrow: 1, paddingLeft: 1 }}>
         <QueuedList items={props.items} theme={theme} />
         {props.children}
