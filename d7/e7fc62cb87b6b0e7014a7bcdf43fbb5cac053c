@@ -1,0 +1,25 @@
+src/components/chat-shell.tsx
+  s_d677e2ea6b9763::t_9acafa258431d4 17,245-261
+src/components/queued.tsx
+  s_d677e2ea6b9763::t_2bd34cd2ff263e 25-54,57,59-60
+src/index.ts
+  s_d677e2ea6b9763::t_c63e9195cdd175 34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d7e7fc62cb87b6b0e7014a7bcdf43fbb5cac053c",
+  "prompts": {},
+  "sessions": {
+    "s_d677e2ea6b9763": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b6f6569a-7a31-4441-a246-a9a2ddb17354",
+        "model": "unknown"
+      },
+      "human_author": "liqiankun.1111 <liqiankun.1111@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
