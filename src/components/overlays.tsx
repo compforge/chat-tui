@@ -102,6 +102,8 @@ export function Picker(props: PickerProps): ReactNode {
 
 export interface ApprovalCardProps {
   approval: ApprovalView;
+  frameTitle?: string;
+  requester?: string;
   anchorBottom: number;
   theme?: Theme;
   onSelect: (optionId: string) => void;
@@ -123,7 +125,7 @@ export function ApprovalCard(props: ApprovalCardProps): ReactNode {
   });
   return (
     <box
-      title="Approval required"
+      title={props.frameTitle ?? "Approval required"}
       border
       borderColor={theme.borderActive}
       style={{
@@ -140,6 +142,7 @@ export function ApprovalCard(props: ApprovalCardProps): ReactNode {
       <scrollbox style={{ height: layout.detailRows, flexShrink: 0 }} focused={false}>
         <text selectable>
           <strong>{props.approval.title}</strong>
+          {props.requester ? ` · ${props.requester}` : null}
           {props.approval.description ? `\n${props.approval.description}` : null}
         </text>
       </scrollbox>
@@ -166,6 +169,8 @@ export function ApprovalCard(props: ApprovalCardProps): ReactNode {
 export interface QuestionCardProps {
   requestId: string;
   question: QuestionView;
+  frameTitle?: string;
+  requester?: string;
   anchorBottom: number;
   theme?: Theme;
   onSubmit: (answers: QuestionAnswers) => void;
@@ -231,7 +236,10 @@ export function QuestionCard(props: QuestionCardProps): ReactNode {
 
   return (
     <box
-      title={`Question ${questionIndex + 1}/${props.question.questions.length} · ${current.header}`}
+      title={
+        props.frameTitle ??
+        `Question ${questionIndex + 1}/${props.question.questions.length} · ${current.header}`
+      }
       border
       borderColor={theme.borderActive}
       style={{
@@ -245,7 +253,10 @@ export function QuestionCard(props: QuestionCardProps): ReactNode {
         flexDirection: "column",
       }}
     >
-      <text>{current.question}</text>
+      <text>
+        {props.requester ? `${props.requester} · ` : null}
+        {current.question}
+      </text>
       {otherMode || choices.length === 0 ? (
         <box border borderColor={theme.border} style={{ height: 3, marginTop: 1 }}>
           <input

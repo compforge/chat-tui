@@ -13,7 +13,7 @@ import {
   type ChatProtocol,
   type ChatViewState,
   type CommandSpec,
-  type QuestionAnswers,
+  type InteractionResponse,
   type TranscriptItem,
 } from "../src/index.ts";
 
@@ -206,14 +206,19 @@ class EchoHarness implements ChatProtocol {
     }
     if (name === "approve") {
       this.patch({
-        approval: {
+        interactions: [{
           id: "approval_demo",
-          title: `Run "rm -rf ${argument || "/tmp/demo"}"?`,
-          options: [
-            { optionId: "yes", name: "Allow", kind: "allow_once" },
-            { optionId: "no", name: "Deny", kind: "reject_once" },
-          ],
-        },
+          kind: "approval",
+          blocking: true,
+          requester: "echo",
+          approval: {
+            title: `Run "rm -rf ${argument || "/tmp/demo"}"?`,
+            options: [
+              { optionId: "yes", name: "Allow", kind: "allow_once" },
+              { optionId: "no", name: "Deny", kind: "reject_once" },
+            ],
+          },
+        }],
       });
       return;
     }
@@ -238,21 +243,26 @@ class EchoHarness implements ChatProtocol {
     }
     if (name === "question") {
       this.patch({
-        question: {
+        interactions: [{
           id: "question_demo",
-          questions: [
-            {
-              id: "approach",
-              header: "Approach",
-              question: "How should the demo proceed?",
-              options: [
-                { label: "Fast", description: "Prefer the shortest path" },
-                { label: "Careful", description: "Add more verification" },
-              ],
-              allowOther: true,
-            },
-          ],
-        },
+          kind: "question",
+          blocking: true,
+          requester: "echo",
+          question: {
+            questions: [
+              {
+                id: "approach",
+                header: "Approach",
+                question: "How should the demo proceed?",
+                options: [
+                  { label: "Fast", description: "Prefer the shortest path" },
+                  { label: "Careful", description: "Add more verification" },
+                ],
+                allowOther: true,
+              },
+            ],
+          },
+        }],
       });
     }
   }
@@ -280,12 +290,11 @@ class EchoHarness implements ChatProtocol {
     });
   }
 
-  resolveApproval(_id: string, optionId: string): void {
-    this.patch({ approval: null, status: { text: `Approval answered: ${optionId}`, tone: "info" } });
-  }
-
-  resolveQuestion(_id: string, answers: QuestionAnswers): void {
-    this.patch({ question: null, status: { text: `Question answered: ${JSON.stringify(answers)}`, tone: "info" } });
+  resolveInteraction(_id: string, response: InteractionResponse): void {
+    this.patch({
+      interactions: [],
+      status: { text: `Interaction answered: ${JSON.stringify(response)}`, tone: "info" },
+    });
   }
 
   private stopStreaming(): void {
