@@ -34,7 +34,7 @@ export function QueuedList(props: QueuedListProps): ReactNode {
   );
 }
 
-export interface QueuedSectionProps {
+export interface InputAreaProps {
   items: QueuedItem[];
   theme?: Theme;
   children: ReactNode;
@@ -44,7 +44,7 @@ export interface QueuedSectionProps {
  * Queued 和 Composer 的容器，左侧带共享的高亮边条。
  * 当没有 queued items 时，只渲染 children（composer）不带边条。
  */
-export function QueuedSection(props: QueuedSectionProps): ReactNode {
+export function InputArea(props: InputAreaProps): ReactNode {
   const theme = props.theme ?? defaultTheme;
   const hasQueued = props.items.length > 0;
 
