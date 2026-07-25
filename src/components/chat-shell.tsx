@@ -2,7 +2,12 @@
 // 接入方只需实现 ChatProtocol + 注入命令表/引用源，即得到完整 chat TUI：
 // 多行输入、slash/@ 补全、分层 Ctrl+C、队列召回、picker/审批浮层。
 
-import { useKeyboard, useRenderer, useSelectionHandler } from "@opentui/react";
+import {
+  useKeyboard,
+  useRenderer,
+  useSelectionHandler,
+  useTerminalDimensions,
+} from "@opentui/react";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import type { ChatProtocol } from "../protocol/index.ts";
@@ -22,6 +27,7 @@ import { InteractionDock } from "./interaction-dock.tsx";
 import { Picker, Suggestions } from "./overlays.tsx";
 import { PlanPinned } from "./plan-pinned.tsx";
 import { InputArea } from "./queued.tsx";
+import { Sidecar, sidecarLayout } from "./sidecar.tsx";
 import { StatusLine } from "./status-line.tsx";
 import { useTokenSelectionOnDoubleClick } from "./token-selection.ts";
 import { Transcript } from "./transcript.tsx";
@@ -44,6 +50,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
   const { protocol } = props;
   const theme = props.theme ?? defaultTheme;
   const renderer = useRenderer();
+  const terminal = useTerminalDimensions();
   useSelectionHandler((selection) => {
     const selectedText = selection.getSelectedText();
     if (selectedText) renderer.copyToClipboardOSC52(selectedText);
@@ -189,6 +196,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
   );
 
   const busy = view.busy ?? false;
+  const currentSidecarLayout = sidecarLayout(view.sidecar, terminal.width);
 
   useKeyboard((key) => {
     const isCtrlC = key.ctrl && key.name === "c";
@@ -230,6 +238,11 @@ export function ChatShell(props: ChatShellProps): ReactNode {
       return;
     }
     if (key.name === "escape") {
+      if (currentSidecarLayout === "overlay" && protocol.dismissSidecar) {
+        key.preventDefault();
+        protocol.dismissSidecar();
+        return;
+      }
       const action = escapeAction({
         busy,
         hasPicker: Boolean(picker && !blockingInteraction),
@@ -310,56 +323,84 @@ export function ChatShell(props: ChatShellProps): ReactNode {
   const overlayBottom = composerHeightFor(draft) + 1 + (visibleStatus ? 1 : 0);
 
   return (
-    <box style={{ flexDirection: "column", flexGrow: 1 }} onMouseDown={selectTokenOnDoubleClick}>
-      <Transcript
-        header={view.header}
-        items={view.transcript}
-        showThoughts={view.showThoughts}
-        theme={theme}
-        clipPolicy={props.clipPolicy}
-      />
-
-      {/* scrollbox 外都是"非过去时"：plan pin（进行中）→ 队列（将来时）→ composer（现在时，Provider Status 挂其顶部） */}
-      <PlanPinned entries={view.plan ?? []} theme={theme} />
-
-      <InputArea items={view.queued ?? []} theme={theme}>
-        <Composer
-          ref={composer}
-          status={view.runStatus}
-          placeholder={view.composerPlaceholder}
-          focused={!blockingInteraction && !picker}
-          busy={busy}
+    <box
+      style={{ flexDirection: "row", flexGrow: 1, position: "relative" }}
+      onMouseDown={selectTokenOnDoubleClick}
+    >
+      <box style={{ flexDirection: "column", flexGrow: 1, position: "relative" }}>
+        <Transcript
+          header={view.header}
+          items={view.transcript}
+          showThoughts={view.showThoughts}
           theme={theme}
-          onChange={(text) => {
-            if (text) disarmCtrlCExit();
-            setDraft(text);
-            setSuggDismissed(false);
-            setSuggIdx(0);
-          }}
-          onSubmit={(text) => void send(text)}
+          clipPolicy={props.clipPolicy}
         />
-      </InputArea>
 
-      <Suggestions candidates={candidates} selectedIndex={sel} anchorBottom={overlayBottom} theme={theme} />
+        {/* scrollbox 外都是"非过去时"：plan pin（进行中）→ 队列（将来时）→ composer（现在时，Provider Status 挂其顶部） */}
+        <PlanPinned entries={view.plan ?? []} theme={theme} />
 
-      <StatusLine status={visibleStatus} fallback={view.footer ?? ""} theme={theme} />
+        <InputArea items={view.queued ?? []} theme={theme}>
+          <Composer
+            ref={composer}
+            status={view.runStatus}
+            placeholder={view.composerPlaceholder}
+            focused={!blockingInteraction && !picker}
+            busy={busy}
+            theme={theme}
+            onChange={(text) => {
+              if (text) disarmCtrlCExit();
+              setDraft(text);
+              setSuggDismissed(false);
+              setSuggIdx(0);
+            }}
+            onSubmit={(text) => void send(text)}
+          />
+        </InputArea>
 
-      {picker && !blockingInteraction && !activeInteraction && (
-        <Picker
-          picker={picker}
+        <Suggestions
+          candidates={candidates}
+          selectedIndex={sel}
           anchorBottom={overlayBottom}
           theme={theme}
-          onSelect={(value) => protocol.resolvePicker(picker.id, value)}
         />
-      )}
 
-      <InteractionDock
-        interactions={visibleInteractions}
-        anchorBottom={overlayBottom}
-        canUseSuggestedInput={!draft}
-        theme={theme}
-        onResolve={(id, response) => void protocol.resolveInteraction(id, response)}
-      />
+        <StatusLine status={visibleStatus} fallback={view.footer ?? ""} theme={theme} />
+
+        {picker && !blockingInteraction && !activeInteraction && (
+          <Picker
+            picker={picker}
+            anchorBottom={overlayBottom}
+            theme={theme}
+            onSelect={(value) => protocol.resolvePicker(picker.id, value)}
+          />
+        )}
+
+        <InteractionDock
+          interactions={visibleInteractions}
+          anchorBottom={overlayBottom}
+          canUseSuggestedInput={!draft}
+          theme={theme}
+          onResolve={(id, response) => void protocol.resolveInteraction(id, response)}
+        />
+      </box>
+
+      {currentSidecarLayout === "inline" && view.sidecar ? (
+        <Sidecar view={view.sidecar} theme={theme} />
+      ) : null}
+
+      {currentSidecarLayout === "overlay" && view.sidecar ? (
+        <box
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 300,
+          }}
+        >
+          <Sidecar view={view.sidecar} theme={theme} overlay />
+        </box>
+      ) : null}
     </box>
   );
 }

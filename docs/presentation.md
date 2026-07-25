@@ -2,20 +2,31 @@
 
 ## 理念
 
-界面自上而下按信息的时态与寿命分层：越接近现在的信息越靠下、越固定，不随历史滚动。展示层可以压缩信息，但不能改写事实；不同维度保持正交，未知输入显式暴露，裁剪只影响当前视图而不截断接入方传入的数据。
+主对话自上而下按信息的时态与寿命分层：越接近现在的信息越靠下、越固定，不随历史滚动。可选 Sidecar 与主对话并列，承载跨时间线的辅助读模型。展示层可以压缩信息，但不能改写事实；不同维度保持正交，未知输入显式暴露，裁剪只影响当前视图而不截断接入方传入的数据。
 
-带方括号的区块是条件渲染，无内容时不占高度：
+带方括号的区块是条件渲染，无内容时不占空间：
 
 ```text
-Transcript        可滚动历史（过去时）
-[Plan]            进行中的计划
-[Queued]          待执行输入（将来时）
-Composer          持续可编辑的输入区（现在时）
-  ├ [Provider Status] 当前输入目标与运行状态
-  └ [Overlay]      补全、选择、审批或结构化问题
-[Feedback]        短寿命操作回执或错误
-Footer            常驻状态
+┌ Main chat ─────────────────────────┬ [Sidecar] ─────────┐
+│ Transcript        可滚动历史（过去时）│ 辅助读模型           │
+│ [Plan]            进行中的计划       │ section / item      │
+│ [Queued]          待执行输入（将来时）│                     │
+│ Composer          持续可编辑输入区    │                     │
+│   ├ [Provider Status] 当前运行状态   │                     │
+│   └ [Overlay]      补全/选择/审批    │                     │
+│ [Feedback]        短寿命操作回执     │                     │
+│ Footer            常驻状态          │                     │
+└────────────────────────────────────┴─────────────────────┘
 ```
+
+## Sidecar
+
+Sidecar 是通用、可选的辅助展示面，和主对话并列而不是放在 Footer 下方。接入方把 Board、上下文、诊断等领域状态先投影成 `SidecarView`；chat-tui 只渲染 section/item/status/detail，不理解条目背后的业务语义。
+
+- 所有 section 都没有条目时完全隐藏，不保留空框或宽度。
+- `auto` 模式在终端宽度大于 120 列时以内联右栏展示；窄屏默认隐藏，避免挤压 transcript 和 composer。
+- `open` 模式在宽屏仍内联，在窄屏改为右侧 overlay；Esc 通过 `dismissSidecar` 把关闭意图交还接入方。
+- `hidden` 始终隐藏。显隐状态归接入方，chat-tui 不持有第二份领域状态。
 
 ## Transcript
 
@@ -51,4 +62,4 @@ Composer 体验不是封闭的功能清单。后续发现新的输入便利能�
 
 ## Feedback 与 Footer
 
-Feedback 来自 `status`，只承载短寿命操作回执或错误，有内容时显示在 Footer 上方。Footer 来自 `footer`，承载用户随时可查的常驻状态；Feedback 出现时不得替换或隐藏 Footer。需要长期回看的信息应进入 Transcript，而不是停留在 Feedback。
+Feedback 来自 `status`，只承载短寿命操作回执或错误，有内容时显示在 Footer 上方。Footer 来自 `footer`，承载用户随时可查的常驻状态；Feedback 出现时不得替换或隐藏 Footer。需要长期回看的信息应进入 Transcript，跨时间线的当前读模型可进入 Sidecar，而不是停留在 Feedback。

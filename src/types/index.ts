@@ -192,6 +192,33 @@ export interface QueuedItem {
   tag?: string;
 }
 
+export type SidecarItemTone = "default" | "muted" | "success" | "warning" | "error";
+
+/** Sidecar 的通用展示条目；业务状态与分组语义由接入方提前投影。 */
+export interface SidecarItem {
+  id: string;
+  title: string;
+  status?: string;
+  detail?: string;
+  tone?: SidecarItemTone;
+}
+
+export interface SidecarSection {
+  id: string;
+  title?: string;
+  items: SidecarItem[];
+}
+
+/**
+ * 与主对话并列的可选辅助视图。无有效条目时 ChatShell 完全隐藏 Sidecar；
+ * mode 缺省为 auto：宽屏内联，窄屏隐藏。
+ */
+export interface SidecarView {
+  title?: string;
+  sections: SidecarSection[];
+  mode?: "auto" | "open" | "hidden";
+}
+
 /** slash 命令声明：chat-tui 只用于补全候选，语义执行归消费方 */
 export interface CommandSpec {
   name: string;
