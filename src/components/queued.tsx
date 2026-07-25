@@ -23,7 +23,7 @@ export function QueuedList(props: QueuedListProps): ReactNode {
   const theme = props.theme ?? defaultTheme;
   if (props.items.length === 0) return null;
   return (
-    <box style={{ flexDirection: "row", flexShrink: 0, paddingLeft: 1, paddingRight: 1 }}>
+    <box style={{ flexDirection: "row", flexShrink: 0, paddingLeft: 1, paddingRight: 1, marginTop: 1 }}>
       <box style={{ width: 1, flexShrink: 0, backgroundColor: theme.accent ?? "#3b82f6" }} />
       <box style={{ flexDirection: "column", flexGrow: 1, paddingLeft: 1 }}>
         <text>• Queued follow-ups</text>
