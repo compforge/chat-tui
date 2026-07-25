@@ -14,7 +14,7 @@ import { CTRL_C_CONFIRM_WINDOW_MS, ctrlCAction, escapeAction } from "./keys.ts";
 import { Composer, composerHeightFor, type ComposerHandle } from "./composer.tsx";
 import { ApprovalCard, Picker, QuestionCard, Suggestions } from "./overlays.tsx";
 import { PlanPinned } from "./plan-pinned.tsx";
-import { QueuedList } from "./queued.tsx";
+import { InputArea } from "./queued.tsx";
 import { StatusLine } from "./status-line.tsx";
 import { useTokenSelectionOnDoubleClick } from "./token-selection.ts";
 import { Transcript } from "./transcript.tsx";
@@ -242,23 +242,23 @@ export function ChatShell(props: ChatShellProps): ReactNode {
       {/* scrollbox 外都是"非过去时"：plan pin（进行中）→ 队列（将来时）→ composer（现在时，Provider Status 挂其顶部） */}
       <PlanPinned entries={view.plan ?? []} theme={theme} />
 
-      <QueuedList items={view.queued ?? []} theme={theme} />
-
-      <Composer
-        ref={composer}
-        status={view.runStatus}
-        placeholder={view.composerPlaceholder}
-        focused={!approval && !question && !picker}
-        busy={busy}
-        theme={theme}
-        onChange={(text) => {
-          if (text) disarmCtrlCExit();
-          setDraft(text);
-          setSuggDismissed(false);
-          setSuggIdx(0);
-        }}
-        onSubmit={(text) => void send(text)}
-      />
+      <InputArea items={view.queued ?? []} theme={theme}>
+        <Composer
+          ref={composer}
+          status={view.runStatus}
+          placeholder={view.composerPlaceholder}
+          focused={!approval && !question && !picker}
+          busy={busy}
+          theme={theme}
+          onChange={(text) => {
+            if (text) disarmCtrlCExit();
+            setDraft(text);
+            setSuggDismissed(false);
+            setSuggIdx(0);
+          }}
+          onSubmit={(text) => void send(text)}
+        />
+      </InputArea>
 
       <Suggestions candidates={candidates} selectedIndex={sel} anchorBottom={overlayBottom} theme={theme} />
 
