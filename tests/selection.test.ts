@@ -89,8 +89,7 @@ describe("double-click selection", () => {
       cancel: () => {},
       exit: () => {},
       resolvePicker: () => {},
-      resolveApproval: () => {},
-      resolveQuestion: () => {},
+      resolveInteraction: () => {},
     };
     let copied = "";
     setup.renderer.copyToClipboardOSC52 = (text) => {
@@ -132,8 +131,7 @@ describe("double-click selection", () => {
       cancel: () => {},
       exit: () => {},
       resolvePicker: () => {},
-      resolveApproval: () => {},
-      resolveQuestion: () => {},
+      resolveInteraction: () => {},
     };
     let copied = "";
     setup.renderer.copyToClipboardOSC52 = (text) => {
@@ -171,8 +169,7 @@ describe("double-click selection", () => {
       cancel: () => {},
       exit: () => {},
       resolvePicker: () => {},
-      resolveApproval: () => {},
-      resolveQuestion: () => {},
+      resolveInteraction: () => {},
     };
     let copied = "";
     setup.renderer.copyToClipboardOSC52 = (text) => {

@@ -4,16 +4,15 @@
 //     选快照而非增量事件：TUI 规模下全量重渲染足够便宜，接入方不用维护
 //     delta 语义，本地 harness 和远端转发（SSE/WebSocket → 本地状态）实现同构。
 //   输入（TUI → 接入方）：submit / command / cancel / exit / resolvePicker /
-//     resolveApproval / recallQueued。这些是用户意图（intent，MVI 语义）：TUI 已把
+//     resolveInteraction / recallQueued。这些是用户意图（intent，MVI 语义）：TUI 已把
 //     原始按键翻译成语义级请求，只表达"用户想干什么"；如何执行（发本地进程还是
 //     远端、cancel 映射到哪家 provider 的 interrupt）由接入方决定。
 
 import type {
-  ApprovalView,
+  InteractionResponse,
+  InteractionView,
   PickerView,
   PlanEntry,
-  QuestionAnswers,
-  QuestionView,
   QueuedItem,
   RunStatusItem,
   StatusMessage,
@@ -39,10 +38,11 @@ export interface ChatViewState {
   queued?: QueuedItem[];
   /** 接入方请求 TUI 弹选择浮层；用户选择/关闭通过 resolvePicker 回传 */
   picker?: (PickerView & { id: string }) | null;
-  /** 待审批请求（一次一个，排队归接入方）；选择通过 resolveApproval 回传 */
-  approval?: (ApprovalView & { id: string }) | null;
-  /** agent 主动向用户索取结构化输入；与 permission approval 保持独立。 */
-  question?: (QuestionView & { id: string }) | null;
+  /**
+   * 当前等待用户参与的请求，按展示优先级排序。InteractionDock 只展示首项并标记总数；
+   * blocking、排队和持久生命周期均由接入方决定。
+   */
+  interactions?: InteractionView[];
   /** 瞬时状态（错误/提示），有内容时展示在常驻 footer 上方 */
   status?: StatusMessage | null;
   /** 常驻底部信息行（usage、队列长度、cwd 等） */
@@ -76,8 +76,8 @@ export interface ChatProtocol {
   exit(): void | Promise<void>;
   /** picker 选择结果；用户 Esc 关闭时 value 为 null */
   resolvePicker(id: string, value: string | null): void;
-  resolveApproval(id: string, optionId: string): void;
-  resolveQuestion(id: string, answers: QuestionAnswers): void;
+  /** InteractionDock 收集的统一响应；接入方按 id 与 kind 收口真实生命周期。 */
+  resolveInteraction(id: string, response: InteractionResponse): void | Promise<void>;
   /** ↑ 召回最近一条排队输入（同时应将其从队列移除）；无可召回返回 null */
   recallQueued?(): { text: string } | null;
   /**

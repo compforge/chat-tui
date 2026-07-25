@@ -140,6 +140,40 @@ export interface QuestionView {
 
 export type QuestionAnswers = Record<string, string[]>;
 
+interface InteractionViewBase {
+  /** Stable identity owned by the consumer; chat-tui only echoes it in intents. */
+  id: string;
+  /** Display-ready source label, such as "codex" or "turn-coach". */
+  requester?: string;
+  /** Whether progress is waiting for this interaction to resolve. */
+  blocking: boolean;
+}
+
+/**
+ * A current request for human participation. Variants keep their own payloads;
+ * the shared shape only drives InteractionDock ordering and attribution.
+ */
+export type InteractionView =
+  | (InteractionViewBase & {
+      kind: "approval";
+      approval: ApprovalView;
+    })
+  | (InteractionViewBase & {
+      kind: "question";
+      question: QuestionView;
+    })
+  | (InteractionViewBase & {
+      kind: "suggested_input";
+      title: string;
+      text: string;
+    });
+
+export type InteractionResponse =
+  | { kind: "approval"; optionId: string }
+  | { kind: "question"; answers: QuestionAnswers }
+  | { kind: "suggested_input"; outcome: "submitted"; text: string }
+  | { kind: "suggested_input"; outcome: "dismissed" };
+
 export interface PickerOption {
   name: string;
   description: string;

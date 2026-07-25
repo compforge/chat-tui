@@ -30,6 +30,10 @@ export {
   type QuestionCardProps,
   type SuggestionsProps,
 } from "./components/overlays.tsx";
+export {
+  InteractionDock,
+  type InteractionDockProps,
+} from "./components/interaction-dock.tsx";
 export { PlanPinned, planWindow, type PlanPinnedProps, type PlanWindow } from "./components/plan-pinned.tsx";
 export { QueuedList, InputArea, queuedPreview, type QueuedListProps, type InputAreaProps } from "./components/queued.tsx";
 export { RunStatus, runStatusParts, runStatusTail, type RunStatusProps } from "./components/run-status.tsx";

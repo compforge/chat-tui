@@ -56,11 +56,11 @@ bun examples/echo.tsx
 - **Transcript** — sticky-bottom scroll; plain/Markdown messages plus unified activity blocks (`status + kind + author? + title + content`) for thoughts, tools, plans, and custom activity; Markdown supports streaming updates, code fences, tables, and links; per-item render override remains available
 - **Height budget** — long text, output, command, and code content is clipped to a visual-row budget (wrap-aware, so one long line can't flood the viewport), while diffs stay fully visible like Codex; `… +N lines (ctrl+o to expand)` hints and Ctrl+O toggles clipped content; the clip policy is injectable (`clipPolicy`) and data is never truncated
 - **Steering queue** — queued follow-up inputs rendered with previews; ↑ recalls the latest queued message for editing (the queue itself lives in your harness)
-- **Overlays** — picker (model/session/… selection), approval cards, and sequential structured questions, anchored above the composer
+- **Interaction dock** — ordered approval, structured-question, and suggested-input requests anchored above the composer; request identity and lifecycle remain in the harness
 - **Keys** — Ctrl+C clears the full draft and exits on a second press, Ctrl+D exits on EOF, Esc interrupts, Ctrl+O expands/collapses clipped blocks
 - **Theme** — one theme object (tokyo-night defaults), overridable per consumer
 
-All interaction logic that can be pure is pure (`triggerAt`, `applyCompletion`, `parseSlashCommand`, `ctrlCAction`) and unit-tested; components stay thin. Use `ChatShell` for the whole surface, or compose `Transcript` / `Composer` / `Suggestions` / `Picker` / `ApprovalCard` / `QuestionCard` / `QueuedList` / `StatusLine` yourself.
+All interaction logic that can be pure is pure (`triggerAt`, `applyCompletion`, `parseSlashCommand`, `ctrlCAction`) and unit-tested; components stay thin. Use `ChatShell` for the whole surface, or compose `Transcript` / `Composer` / `Suggestions` / `Picker` / `InteractionDock` / `ApprovalCard` / `QuestionCard` / `QueuedList` / `StatusLine` yourself.
 
 ## Capability matrix
 
@@ -71,6 +71,7 @@ chat-tui describes UI capabilities, not provider capabilities. A check here mean
 | Interaction | UI surface | Support | Boundary |
 |---|---|---|---|
 | Text message | Composer → `submit(text)` | Yes | Text only; attachments and structured content are not modeled |
+| Suggested input | `InteractionView(kind: "suggested_input")` → InteractionDock → editable Composer | Yes | `Ctrl+Y` loads it only into an empty composer; Enter or Ctrl+C resolves it with its stable identity |
 | Model switch | `picker` + `resolvePicker()`, or a command | UI only | There is no model concept in chat-tui; discovery, current selection, and application belong to the harness |
 | Harness/product slash command | Completion → `command(name, argument)` | Yes | The command registry and semantics are injected by the harness |
 | Provider-compatible slash command | Same `command()` intent | UI only | chat-tui does not distinguish ownership; the harness must discover and route provider commands explicitly |
@@ -79,8 +80,8 @@ chat-tui describes UI capabilities, not provider capabilities. A check here mean
 | Input recall / history | ↑/↓ → `recallQueued()` / `historyPrev()` / `historyNext()` | Yes | ↑ recalls a queued input first (empty draft), then walks input history when the cursor is at a buffer boundary; ↓ walks forward and restores the stashed draft. The harness owns the history list and decides continuation |
 | Same-turn steer | No distinct intent | No | A queued follow-up is not the same as steering an active provider turn |
 | Generic single choice | `picker` → `resolvePicker()` | Yes | One question, one option, or dismiss; suitable for model/session selection |
-| Permission decision | `approval` → `resolveApproval()` | Yes | One request with provider-defined options; intentionally not dismissible |
-| Structured agent question | `question` → `resolveQuestion()` | Partial | Multiple questions, multi-select, free text/“Other”, and previews are supported; `secret` is carried in the view contract but the default terminal input is not masked |
+| Permission decision | `InteractionView(kind: "approval")` → `resolveInteraction()` | Yes | One request with provider-defined options; intentionally not dismissible |
+| Structured agent question | `InteractionView(kind: "question")` → `resolveInteraction()` | Partial | Multiple questions, multi-select, free text/“Other”, and previews are supported; `secret` is carried in the view contract but the default terminal input is not masked |
 | Structured elicitation/form | — | No | Arbitrary MCP/provider forms are outside the current protocol |
 
 ### Harness → user
@@ -94,18 +95,19 @@ chat-tui describes UI capabilities, not provider capabilities. A check here mean
 | Long content | Text/output/code/command are clipped to a visual-row budget; diffs stay expanded | Yes | Pass full content; clipping is display-only, Ctrl+O expands clipped blocks, and the policy (`clipPolicy`) is injectable |
 | Provider status and usage | `runStatus` / `status` / `footer` | Yes | `runStatus` renders as present-tense status lines attached to the composer top (first item = current input target + run phase, extra items = other active agents; author colored via `agentColorFor`, elapsed ticks locally from `startedAt`); labels are preformatted — semantics stay in the harness |
 | Pinned plan | `plan` | Yes | Pins the active plan above the queued list; long plans window around the first unfinished entry; visibility policy belongs to the harness (send entries only while unfinished) |
-| Provider request for action | `picker` / `approval` / `question` | Partial | Simple choice, permission, and structured questions are covered; provider dialogs/forms are not |
+| Human interaction | `interactions: InteractionView[]` | Yes | InteractionDock presents the first ordered request and shows queue position; blocking policy and durable lifecycle remain in the harness |
+| Provider request for action | `picker` / `interactions` | Partial | Simple choice, permission, structured questions, and suggested inputs are covered; arbitrary provider dialogs/forms are not |
 
 ## Protocol at a glance
 
 | Direction | Surface | Meaning |
 |---|---|---|
-| harness → TUI | `getView(): ChatViewState` | full view snapshot: transcript items, busy, queued, picker/approval/question requests, status, footer |
+| harness → TUI | `getView(): ChatViewState` | full view snapshot: transcript items, busy, queued, ordered interactions, picker, status, footer |
 | harness → TUI | `subscribe(cb)` | change notification; `getView()` must return a stable reference between changes |
-| TUI → harness | `submit(text)` | user message (recognized slash commands go to `command()` instead) |
+| TUI → harness | `submit(text)` | user message; recognized slash commands go to `command()` instead |
 | TUI → harness | `command(name, argument)` | registered slash command invocation |
 | TUI → harness | `cancel()` / `exit()` | interrupt turn / graceful shutdown |
-| TUI → harness | `resolvePicker(...)` / `resolveApproval(...)` / `resolveQuestion(...)` | answers to overlays the harness requested |
+| TUI → harness | `resolvePicker(...)` / `resolveInteraction(...)` | answers to picker or InteractionDock requests |
 | TUI → harness | `recallQueued()` | ↑ recall of the latest queued input |
 | TUI → harness | `historyPrev(current)` / `historyNext(current)` | ↑/↓ input-history recall at a buffer boundary; the harness owns the history and decides whether to navigate |
 

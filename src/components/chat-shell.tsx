@@ -6,13 +6,20 @@ import { useKeyboard, useRenderer, useSelectionHandler } from "@opentui/react";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import type { ChatProtocol } from "../protocol/index.ts";
-import { defaultTheme, type CommandSpec, type StatusMessage, type Theme } from "../types/index.ts";
+import {
+  defaultTheme,
+  type CommandSpec,
+  type InteractionView,
+  type StatusMessage,
+  type Theme,
+} from "../types/index.ts";
 import type { ClipPolicy } from "./clip.ts";
 import { parseSlashCommand } from "./commands.ts";
 import { acceptCompletion, buildCandidates, triggerAt, type Candidate } from "./completion.ts";
 import { CTRL_C_CONFIRM_WINDOW_MS, ctrlCAction, escapeAction } from "./keys.ts";
 import { Composer, composerHeightFor, type ComposerHandle } from "./composer.tsx";
-import { ApprovalCard, Picker, QuestionCard, Suggestions } from "./overlays.tsx";
+import { InteractionDock } from "./interaction-dock.tsx";
+import { Picker, Suggestions } from "./overlays.tsx";
 import { PlanPinned } from "./plan-pinned.tsx";
 import { InputArea } from "./queued.tsx";
 import { StatusLine } from "./status-line.tsx";
@@ -52,6 +59,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
 
   const [draft, setDraft] = useState("");
   const composer = useRef<ComposerHandle | null>(null);
+  const [editingSuggestionId, setEditingSuggestionId] = useState<string | null>(null);
   // 本地瞬时提示（Ctrl+C 二次确认等）；接入方的 view.status 优先级更高
   const [localStatus, setLocalStatus] = useState<StatusMessage | null>(null);
   const [suggIdx, setSuggIdx] = useState(0);
@@ -98,11 +106,24 @@ export function ChatShell(props: ChatShellProps): ReactNode {
 
   // 候选由输入实时推导（/ 行首=命令，@ =引用），无独立状态需要同步
   const trigger = triggerAt(draft);
-  const approval = view.approval ?? null;
-  const question = view.question ?? null;
+  const interactions = view.interactions ?? [];
+  const editingSuggestion = editingSuggestionId
+    ? interactions.find(
+        (
+          interaction,
+        ): interaction is Extract<InteractionView, { kind: "suggested_input" }> =>
+          interaction.id === editingSuggestionId && interaction.kind === "suggested_input",
+      )
+    : undefined;
+  const visibleInteractions = editingSuggestionId
+    ? interactions.filter((interaction) => interaction.id !== editingSuggestionId)
+    : interactions;
+  const activeInteraction = visibleInteractions[0] ?? null;
+  const blockingInteraction =
+    activeInteraction?.kind === "approval" || activeInteraction?.kind === "question";
   const picker = view.picker ?? null;
   const candidates =
-    trigger && !suggDismissed && !approval && !question && !picker
+    trigger && !suggDismissed && !blockingInteraction && !picker
       ? buildCandidates(trigger, { commands: props.commands, mentions: props.mentions })
       : [];
   const sel = candidates.length ? Math.min(suggIdx, candidates.length - 1) : 0;
@@ -110,24 +131,61 @@ export function ChatShell(props: ChatShellProps): ReactNode {
   // 焦点安全网：浮层都关闭时确保焦点回到输入框。focused prop 只在值变化时生效，
   // 覆盖不到"焦点被别处拿走但 prop 没变"的场景；focus() 对已聚焦者是 no-op，代价可忽略。
   useEffect(() => {
-    if (!approval && !question && !picker) composer.current?.focus();
+    if (!blockingInteraction && !picker) composer.current?.focus();
   });
+
+  useEffect(() => {
+    if (editingSuggestionId && !editingSuggestion) setEditingSuggestionId(null);
+  }, [editingSuggestion, editingSuggestionId]);
+
+  const releaseEditingSuggestion = useCallback(() => {
+    setEditingSuggestionId(null);
+  }, []);
+
+  const useSuggestedInput = useCallback(
+    (interaction: Extract<InteractionView, { kind: "suggested_input" }>) => {
+      if (draft) {
+        setLocalStatus({ text: "Clear the composer before using this suggestion", tone: "info" });
+        return;
+      }
+      setEditingSuggestionId(interaction.id);
+      setDraft(interaction.text);
+      composer.current?.setText(interaction.text);
+      composer.current?.focus();
+      setLocalStatus(null);
+    },
+    [draft],
+  );
 
   const send = useCallback(
     async (raw: string) => {
       const trimmed = raw.trim();
       if (!trimmed) return;
+      const sourceSuggestion = editingSuggestion;
       resetComposer();
       setLocalStatus(null);
       try {
-        const command = parseSlashCommand(trimmed, props.commands);
-        if (command) await protocol.command(command.name, command.argument);
-        else await protocol.submit(trimmed);
+        if (sourceSuggestion) {
+          await protocol.resolveInteraction(sourceSuggestion.id, {
+            kind: "suggested_input",
+            outcome: "submitted",
+            text: trimmed,
+          });
+          setEditingSuggestionId(null);
+        } else {
+          const command = parseSlashCommand(trimmed, props.commands);
+          if (command) {
+            await protocol.command(command.name, command.argument);
+          } else {
+            await protocol.submit(trimmed);
+          }
+        }
       } catch (error) {
+        setEditingSuggestionId(null);
         setLocalStatus({ text: error instanceof Error ? error.message : String(error), tone: "error" });
       }
     },
-    [props.commands, protocol, resetComposer],
+    [editingSuggestion, props.commands, protocol, resetComposer],
   );
 
   const busy = view.busy ?? false;
@@ -138,8 +196,17 @@ export function ChatShell(props: ChatShellProps): ReactNode {
     if (isCtrlC) {
       // Ctrl+C 只管理 composer/退出；当前 turn 的中断统一归 Esc。
       key.preventDefault();
+      if (activeInteraction?.kind === "suggested_input" && !draft) {
+        void protocol.resolveInteraction(activeInteraction.id, {
+          kind: "suggested_input",
+          outcome: "dismissed",
+        });
+        setLocalStatus({ text: "Suggestion dismissed", tone: "info" });
+        return;
+      }
       const action = ctrlCAction({ hasDraft: draft !== "", armedAt: ctrlCArmedAt.current, now: Date.now() });
       if (action === "clear-draft") {
+        releaseEditingSuggestion();
         resetComposer();
         setSuggIdx(0);
         armCtrlCExit(CTRL_C_CLEARED_HINT);
@@ -152,10 +219,20 @@ export function ChatShell(props: ChatShellProps): ReactNode {
       if (!draft && !busy) void protocol.exit();
       return;
     }
+    if (
+      key.ctrl &&
+      key.name === "y" &&
+      activeInteraction?.kind === "suggested_input" &&
+      !draft
+    ) {
+      key.preventDefault();
+      useSuggestedInput(activeInteraction);
+      return;
+    }
     if (key.name === "escape") {
       const action = escapeAction({
         busy,
-        hasPicker: Boolean(picker && !approval && !question),
+        hasPicker: Boolean(picker && !blockingInteraction),
         hasCandidates: candidates.length > 0,
       });
       if (action !== "none") key.preventDefault();
@@ -190,11 +267,12 @@ export function ChatShell(props: ChatShellProps): ReactNode {
       return;
     }
     // ↑：优先级 队列召回（仅空输入，避免覆盖已输入内容）→ 历史回溯（光标在边界）→ 光标上移。
-    if (key.name === "up" && !approval && !question && !picker) {
+    if (key.name === "up" && !blockingInteraction && !picker) {
       if (!draft) {
         const recalled = protocol.recallQueued?.();
         if (recalled) {
           key.preventDefault();
+          releaseEditingSuggestion();
           setDraft(recalled.text);
           composer.current?.setText(recalled.text);
           setLocalStatus({ text: "Recalled queued message; edit and resend", tone: "info" });
@@ -205,6 +283,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
         const entry = protocol.historyPrev?.(draft);
         if (entry) {
           key.preventDefault();
+          releaseEditingSuggestion();
           setDraft(entry.text);
           composer.current?.setText(entry.text);
           return;
@@ -212,11 +291,12 @@ export function ChatShell(props: ChatShellProps): ReactNode {
       }
     }
     // ↓：历史前进（光标在边界）；未在浏览时接入方返回 null，放行为光标下移。
-    if (key.name === "down" && !approval && !question && !picker) {
+    if (key.name === "down" && !blockingInteraction && !picker) {
       if (composer.current?.cursorAtBoundary() ?? true) {
         const entry = protocol.historyNext?.(draft);
         if (entry) {
           key.preventDefault();
+          releaseEditingSuggestion();
           setDraft(entry.text);
           composer.current?.setText(entry.text);
           return;
@@ -247,7 +327,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
           ref={composer}
           status={view.runStatus}
           placeholder={view.composerPlaceholder}
-          focused={!approval && !question && !picker}
+          focused={!blockingInteraction && !picker}
           busy={busy}
           theme={theme}
           onChange={(text) => {
@@ -264,7 +344,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
 
       <StatusLine status={visibleStatus} fallback={view.footer ?? ""} theme={theme} />
 
-      {picker && !approval && !question && (
+      {picker && !blockingInteraction && !activeInteraction && (
         <Picker
           picker={picker}
           anchorBottom={overlayBottom}
@@ -273,24 +353,13 @@ export function ChatShell(props: ChatShellProps): ReactNode {
         />
       )}
 
-      {approval && (
-        <ApprovalCard
-          approval={approval}
-          anchorBottom={overlayBottom}
-          theme={theme}
-          onSelect={(optionId) => protocol.resolveApproval(approval.id, optionId)}
-        />
-      )}
-
-      {question && !approval && (
-        <QuestionCard
-          requestId={question.id}
-          question={question}
-          anchorBottom={overlayBottom}
-          theme={theme}
-          onSubmit={(answers) => protocol.resolveQuestion(question.id, answers)}
-        />
-      )}
+      <InteractionDock
+        interactions={visibleInteractions}
+        anchorBottom={overlayBottom}
+        canUseSuggestedInput={!draft}
+        theme={theme}
+        onResolve={(id, response) => void protocol.resolveInteraction(id, response)}
+      />
     </box>
   );
 }
