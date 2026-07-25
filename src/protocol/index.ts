@@ -15,6 +15,7 @@ import type {
   PlanEntry,
   QueuedItem,
   RunStatusItem,
+  SidecarView,
   StatusMessage,
   TranscriptItem,
 } from "../types/index.ts";
@@ -43,6 +44,11 @@ export interface ChatViewState {
    * blocking、排队和持久生命周期均由接入方决定。
    */
   interactions?: InteractionView[];
+  /**
+   * 与主对话并列的可选辅助视图。无有效条目时隐藏且不占宽度；
+   * auto 模式仅在宽屏内联，open 模式在窄屏使用 overlay。
+   */
+  sidecar?: SidecarView;
   /** 瞬时状态（错误/提示），有内容时展示在常驻 footer 上方 */
   status?: StatusMessage | null;
   /** 常驻底部信息行（usage、队列长度、cwd 等） */
@@ -78,6 +84,8 @@ export interface ChatProtocol {
   resolvePicker(id: string, value: string | null): void;
   /** InteractionDock 收集的统一响应；接入方按 id 与 kind 收口真实生命周期。 */
   resolveInteraction(id: string, response: InteractionResponse): void | Promise<void>;
+  /** 窄屏 overlay 的 Esc 关闭意图；显示状态仍由下一份视图快照决定。 */
+  dismissSidecar?(): void;
   /** ↑ 召回最近一条排队输入（同时应将其从队列移除）；无可召回返回 null */
   recallQueued?(): { text: string } | null;
   /**

@@ -57,6 +57,7 @@ bun examples/echo.tsx
 - **Height budget** — long text, output, command, and code content is clipped to a visual-row budget (wrap-aware, so one long line can't flood the viewport), while diffs stay fully visible like Codex; `… +N lines (ctrl+o to expand)` hints and Ctrl+O toggles clipped content; the clip policy is injectable (`clipPolicy`) and data is never truncated
 - **Steering queue** — queued follow-up inputs rendered with previews; ↑ recalls the latest queued message for editing (the queue itself lives in your harness)
 - **Interaction dock** — ordered approval, structured-question, and suggested-input requests anchored above the composer; request identity and lifecycle remain in the harness
+- **Optional sidecar** — generic section/item snapshots render as a 42-column right rail on wide terminals or an explicit overlay on narrow terminals; empty data consumes no space
 - **Keys** — Ctrl+C clears the full draft and exits on a second press, Ctrl+D exits on EOF, Esc interrupts, Ctrl+O expands/collapses clipped blocks
 - **Theme** — one theme object (tokyo-night defaults), overridable per consumer
 
@@ -94,6 +95,7 @@ chat-tui describes UI capabilities, not provider capabilities. A check here mean
 | Block content | `text` / `lines` / `plan` / `code` / `command` / `output` / `diff` | Yes | Code uses Tree-sitter syntax highlighting; diff uses a Codex-style, line-numbered unified view with file headers and colored add/remove statistics |
 | Long content | Text/output/code/command are clipped to a visual-row budget; diffs stay expanded | Yes | Pass full content; clipping is display-only, Ctrl+O expands clipped blocks, and the policy (`clipPolicy`) is injectable |
 | Provider status and usage | `runStatus` / `status` / `footer` | Yes | `runStatus` renders as present-tense status lines attached to the composer top (first item = current input target + run phase, extra items = other active agents; author colored via `agentColorFor`, elapsed ticks locally from `startedAt`); labels are preformatted — semantics stay in the harness |
+| Auxiliary sidecar | `sidecar` | Yes | Display-ready sections/items only; empty data hides completely, wide terminals render inline, and narrow terminals require `mode: "open"` |
 | Pinned plan | `plan` | Yes | Pins the active plan above the queued list; long plans window around the first unfinished entry; visibility policy belongs to the harness (send entries only while unfinished) |
 | Human interaction | `interactions: InteractionView[]` | Yes | InteractionDock presents the first ordered request and shows queue position; blocking policy and durable lifecycle remain in the harness |
 | Provider request for action | `picker` / `interactions` | Partial | Simple choice, permission, structured questions, and suggested inputs are covered; arbitrary provider dialogs/forms are not |
@@ -102,12 +104,13 @@ chat-tui describes UI capabilities, not provider capabilities. A check here mean
 
 | Direction | Surface | Meaning |
 |---|---|---|
-| harness → TUI | `getView(): ChatViewState` | full view snapshot: transcript items, busy, queued, ordered interactions, picker, status, footer |
+| harness → TUI | `getView(): ChatViewState` | full view snapshot: transcript items, busy, queued, ordered interactions, picker, optional sidecar, status, footer |
 | harness → TUI | `subscribe(cb)` | change notification; `getView()` must return a stable reference between changes |
 | TUI → harness | `submit(text)` | user message; recognized slash commands go to `command()` instead |
 | TUI → harness | `command(name, argument)` | registered slash command invocation |
 | TUI → harness | `cancel()` / `exit()` | interrupt turn / graceful shutdown |
 | TUI → harness | `resolvePicker(...)` / `resolveInteraction(...)` | answers to picker or InteractionDock requests |
+| TUI → harness | `dismissSidecar()` | optional intent emitted when Esc closes a narrow-screen sidecar overlay |
 | TUI → harness | `recallQueued()` | ↑ recall of the latest queued input |
 | TUI → harness | `historyPrev(current)` / `historyNext(current)` | ↑/↓ input-history recall at a buffer boundary; the harness owns the history and decides whether to navigate |
 

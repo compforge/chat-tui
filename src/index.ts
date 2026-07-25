@@ -38,5 +38,14 @@ export { PlanPinned, planWindow, type PlanPinnedProps, type PlanWindow } from ".
 export { QueuedList, InputArea, queuedPreview, type QueuedListProps, type InputAreaProps } from "./components/queued.tsx";
 export { RunStatus, runStatusParts, runStatusTail, type RunStatusProps } from "./components/run-status.tsx";
 export { StatusLine, type StatusLineProps } from "./components/status-line.tsx";
+export {
+  Sidecar,
+  SIDECAR_BREAKPOINT,
+  SIDECAR_WIDTH,
+  sidecarLayout,
+  visibleSidecarSections,
+  type SidecarLayout,
+  type SidecarProps,
+} from "./components/sidecar.tsx";
 // 自定义壳（不用 ChatShell 自行组装组件）在根容器上挂一次，即可让全部可见文本获得双击选词
 export { useTokenSelectionOnDoubleClick } from "./components/token-selection.ts";
