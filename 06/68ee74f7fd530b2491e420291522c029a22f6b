@@ -1,0 +1,21 @@
+src/components/queued.tsx
+  s_cc40e2261c7d61::t_5854f174d963ab 57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "0668ee74f7fd530b2491e420291522c029a22f6b",
+  "prompts": {},
+  "sessions": {
+    "s_cc40e2261c7d61": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8aa67c4d-6382-4e6a-9c6f-3f48b6f807f0",
+        "model": "unknown"
+      },
+      "human_author": "liqiankun.1111 <liqiankun.1111@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
