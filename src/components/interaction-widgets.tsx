@@ -4,7 +4,13 @@
 
 import type { InputRenderable } from "@opentui/core";
 import { useTerminalDimensions } from "@opentui/react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  Fragment,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import {
   defaultTheme,
@@ -37,6 +43,14 @@ export interface SuggestionsProps {
 export function Suggestions(props: SuggestionsProps): ReactNode {
   const theme = props.theme ?? defaultTheme;
   if (props.candidates.length === 0) return null;
+  const groupHeadings = props.candidates.reduce(
+    (count, candidate, index) =>
+      candidate.group &&
+        candidate.group !== props.candidates[index - 1]?.group
+        ? count + 1
+        : count,
+    0,
+  );
   return (
     <box
       border
@@ -47,16 +61,22 @@ export function Suggestions(props: SuggestionsProps): ReactNode {
         left: 2,
         bottom: props.anchorBottom,
         width: 60,
-        height: props.candidates.length + 2,
+        height: props.candidates.length + groupHeadings + 2,
         backgroundColor: theme.overlayBackground ?? defaultTheme.overlayBackground,
         zIndex: 150,
         flexDirection: "column",
       }}
     >
       {props.candidates.map((candidate, index) => (
-        <text key={candidate.insert} fg={index === props.selectedIndex ? theme.accent : undefined}>
-          {`${index === props.selectedIndex ? "▸ " : "  "}${candidate.label}  ${candidate.detail}`}
-        </text>
+        <Fragment key={candidate.insert}>
+          {candidate.group &&
+              candidate.group !== props.candidates[index - 1]?.group
+            ? <text fg={theme.dim}>{candidate.group}</text>
+            : null}
+          <text fg={index === props.selectedIndex ? theme.accent : undefined}>
+            {`${index === props.selectedIndex ? "▸ " : "  "}${candidate.label}  ${candidate.detail}`}
+          </text>
+        </Fragment>
       ))}
     </box>
   );

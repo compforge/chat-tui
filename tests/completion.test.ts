@@ -32,6 +32,7 @@ describe("triggerAt", () => {
   test("at anywhere at tail", () => {
     expect(triggerAt("@")).toEqual({ kind: "at", start: 0, prefix: "" });
     expect(triggerAt("see @bs_01")).toEqual({ kind: "at", start: 4, prefix: "bs_01" });
+    expect(triggerAt("处理 @需求")).toEqual({ kind: "at", start: 3, prefix: "需求" });
     expect(triggerAt("a@b then")).toBeNull();
   });
 });
@@ -49,6 +50,22 @@ describe("buildCandidates", () => {
     expect(all.map((c) => c.insert)).toEqual(["@bs_01BBBB"]);
   });
 
+  test("preserves groups supplied by a mention source", () => {
+    const grouped = buildCandidates(
+      { kind: "at", start: 0, prefix: "" },
+      {
+        commands,
+        mentions: () => [{
+          insert: "@req_1",
+          label: "REQ-1",
+          detail: "ship it",
+          group: "reqloop@requirement",
+        }],
+      },
+    );
+    expect(grouped[0]?.group).toBe("reqloop@requirement");
+  });
+
   test("at without mention source yields nothing", () => {
     expect(buildCandidates({ kind: "at", start: 0, prefix: "" }, { commands })).toEqual([]);
   });
@@ -56,6 +73,26 @@ describe("buildCandidates", () => {
   test("limit caps results", () => {
     const capped = buildCandidates({ kind: "at", start: 0, prefix: "" }, { commands, mentions }, { limit: 1 });
     expect(capped).toHaveLength(1);
+  });
+
+  test("limit keeps each mention group visible before filling another", () => {
+    const groupedMentions = (): Candidate[] => [
+      { insert: "@s1", label: "S1", detail: "", group: "session" },
+      { insert: "@s2", label: "S2", detail: "", group: "session" },
+      { insert: "@s3", label: "S3", detail: "", group: "session" },
+      { insert: "@r1", label: "R1", detail: "", group: "reqloop@requirement" },
+      { insert: "@r2", label: "R2", detail: "", group: "reqloop@requirement" },
+    ];
+    const limited = buildCandidates(
+      { kind: "at", start: 0, prefix: "" },
+      { commands, mentions: groupedMentions },
+      { limit: 3 },
+    );
+    expect(limited.map((candidate) => candidate.insert)).toEqual([
+      "@s1",
+      "@s2",
+      "@r1",
+    ]);
   });
 });
 
