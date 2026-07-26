@@ -3,7 +3,7 @@ import { createTestRenderer, type TestRendererSetup } from "@opentui/core/testin
 import { createRoot, type Root } from "@opentui/react";
 import { createElement } from "react";
 
-import { QuestionCard } from "../src/components/overlays.tsx";
+import { QuestionCard } from "../src/components/interaction-widgets.tsx";
 import { questionCardLayout } from "../src/components/question.ts";
 
 let mounted: { root: Root; setup: TestRendererSetup } | null = null;

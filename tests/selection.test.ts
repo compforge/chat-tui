@@ -114,13 +114,13 @@ describe("double-click selection", () => {
     expect(copied).toBe("meta.json");
   });
 
-  test("keeps the footer visible with a status and supports double-click copy", async () => {
+  test("keeps the footer visible with a toast and supports double-click copy", async () => {
     const setup = await createTestRenderer({ width: 80, height: 8, screenMode: "main-screen" });
     const root = createRoot(setup.renderer);
     mounted = { root, setup };
     const view: ChatViewState = {
       transcript: [],
-      status: { text: "claude turn queued", tone: "info" },
+      toast: { text: "claude turn queued", tone: "info" },
       footer: "session: bs_01ABC-xyz  turns:2",
     };
     const protocol: ChatProtocol = {

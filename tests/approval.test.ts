@@ -4,7 +4,7 @@ import { createTestRenderer, type TestRendererSetup } from "@opentui/core/testin
 import { createRoot, type Root } from "@opentui/react";
 import { createElement } from "react";
 
-import { ApprovalCard } from "../src/components/overlays.tsx";
+import { ApprovalCard } from "../src/components/interaction-widgets.tsx";
 import { approvalCardLayout } from "../src/components/approval.ts";
 
 let mounted: { root: Root; setup: TestRendererSetup } | null = null;
@@ -26,7 +26,7 @@ const LONG_COMMAND =
   "/bin/zsh -lc 'bash /Users/bytedance/.codex/plugins/cache/devloop/devloop/0.1.38/scripts/smart_gcampr.sh " +
   "--message-file /Users/bytedance/myprojects/mono-agent/chat-tui/.devloop/commit_msg " +
   "--repo /Users/bytedance/myprojects/mono-agent/chat-tui --branch feat/footer-double-click-copy " +
-  "--files src/components/chat-shell.tsx,src/components/status-line.tsx,src/components/token-selection.ts," +
+  "--files src/components/chat-shell.tsx,src/components/toast-line.tsx,src/components/token-selection.ts," +
   "src/components/transcript.tsx,tests/selection.test.ts'";
 
 describe("approval card", () => {

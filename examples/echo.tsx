@@ -273,7 +273,7 @@ class EchoHarness implements ChatProtocol {
     for (const item of this.items) {
       if (item.type === "block" && item.status === "in_progress") item.status = "failed";
     }
-    this.patch({ busy: false, runStatus: this.agentStatus(), status: { text: "Interrupted", tone: "info" } });
+    this.patch({ busy: false, runStatus: this.agentStatus(), toast: { text: "Interrupted", tone: "info" } });
   }
 
   exit(): void {
@@ -286,14 +286,14 @@ class EchoHarness implements ChatProtocol {
     this.patch({
       picker: null,
       runStatus: this.view.busy ? this.view.runStatus : this.agentStatus(),
-      status: value ? { text: `Model set to ${value}`, tone: "info" } : null,
+      toast: value ? { text: `Model set to ${value}`, tone: "info" } : null,
     });
   }
 
   resolveInteraction(_id: string, response: InteractionResponse): void {
     this.patch({
       interactions: [],
-      status: { text: `Interaction answered: ${JSON.stringify(response)}`, tone: "info" },
+      toast: { text: `Interaction answered: ${JSON.stringify(response)}`, tone: "info" },
     });
   }
 

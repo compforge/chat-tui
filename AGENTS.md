@@ -31,7 +31,8 @@ chat-tui/
 │       ├── composer.tsx     # 多行输入框 + ComposerHandle（setText/clear/focus）
 │       ├── commands.ts      # slash 命令识别（唯一前缀匹配）
 │       ├── completion.ts    # / 与 @ 触发识别、候选构建（命令表/引用源注入）、补全应用
-│       ├── overlays.tsx     # Suggestions / Picker / ApprovalCard / QuestionCard（底部锚定浮层）
+│       ├── interaction-dock.tsx # InteractionDock：统一选择当前待处理的人机交互
+│       ├── interaction-widgets.tsx # Dock 内的 Suggestions / Picker / ApprovalCard / QuestionCard
 │       ├── overlay-card.ts  # 浮层卡片统一布局预算：操作/选项行优先保底、详情分剩余、截断留痕
 │       ├── approval.ts      # 审批卡布局（overlay-card 实例化）：先留操作行，剩余给详情
 │       ├── question.ts      # 问题卡布局（overlay-card 实例化）：选项行优先，焦点详情限行留痕
@@ -39,7 +40,7 @@ chat-tui/
 │       ├── queued.tsx       # steer 队列展示 + queuedPreview
 │       ├── run-status.tsx   # 固定运行状态区（elapsed 跳秒自持）+ runStatusParts 文案拼装
 │       ├── sidecar.tsx      # 可选右侧辅助视图；宽屏内联、窄屏按需 overlay、空数据隐藏
-│       └── status-line.tsx  # 底部状态行（瞬时 status 优先，回落 footer）
+│       └── toast-line.tsx   # 底部提示行（瞬时 toast 优先，footer 常驻）
 ├── examples/echo.tsx        # 假 harness 全交互演示：bun examples/echo.tsx
 └── tests/                   # bun test；只测纯逻辑，组件靠 typecheck + example 人工验证
 ```
@@ -50,7 +51,7 @@ chat-tui/
 
 - **边界以是否理解 agent 语义为准**：chat-tui 只接收展示快照、产出用户 intent，不拥有 session / turn / provider / 事件流语义；具体命令、引用源和 theme 均由接入方注入。协议边界与快照契约见 `docs/protocol.md`。
 - **展示必须诚实且保持语义正交**：展示模型不冒充上游事件，结果、提示、来源和正文格式各自表达；未知值显式暴露，不静默伪装成已知状态。具体投影与裁剪规则见 `docs/presentation.md`。
-- **主对话按信息时态分层，Sidecar 是可选正交读模型**：主区自上而下是 Transcript → [Plan] → [Queued] → Composer（含 Provider Status / 浮层）→ [Feedback] → Footer；Sidecar 与主区并列且空数据完全隐藏。流式输出不能妨碍用户继续组织多行 draft。区块职责与输入体验原则统一见 `docs/presentation.md`。
+- **主对话按信息时态分层，Sidecar 是可选正交读模型**：主区自上而下是 Transcript → [Plan] → [Queued] → Composer（含 Provider Status / Interaction Dock）→ [Toast] → Footer；Sidecar 与主区并列且空数据完全隐藏。流式输出不能妨碍用户继续组织多行 draft。区块职责与输入体验原则统一见 `docs/presentation.md`。
 - **实现以纯逻辑和概念内聚为先**：交互/展示规则优先写成可测试的纯函数，组件只做粘合；概念逻辑与渲染同放，`utils/` 只容纳可跨终端应用复用的原语。实现细则见 `docs/implementation.md`。
 
 ## References

@@ -13,8 +13,8 @@
 │ [Queued]          待执行输入（将来时）│                     │
 │ Composer          持续可编辑输入区    │                     │
 │   ├ [Provider Status] 当前运行状态   │                     │
-│   └ [Overlay]      补全/选择/审批    │                     │
-│ [Feedback]        短寿命操作回执     │                     │
+│   └ [Interaction Dock] 补全/选择/审批│                     │
+│ [Toast]           短寿命操作回执     │                     │
 │ Footer            常驻状态          │                     │
 └────────────────────────────────────┴─────────────────────┘
 ```
@@ -47,7 +47,7 @@ Transcript 是可滚动的过去时区域，接收 message 与 activity block �
 
 ## Composer
 
-Composer 是固定在历史区下方、供用户持续组织和修改输入的创作面，不是只在 agent 空闲时开放的一次性提交框。它包含可选的 Provider Status、输入框及贴近输入框的 overlays；设计优先级始终偏向方便用户表达，并保护尚未提交的输入。
+Composer 是固定在历史区下方、供用户持续组织和修改输入的创作面，不是只在 agent 空闲时开放的一次性提交框。它包含可选的 Provider Status、输入框及贴近输入框的 Interaction Dock；设计优先级始终偏向方便用户表达，并保护尚未提交的输入。
 
 输入区遵守以下不变量：
 
@@ -56,10 +56,10 @@ Composer 是固定在历史区下方、供用户持续组织和修改输入的�
 3. **编辑状态只有一个权威修改通道**：textarea 自持内部 buffer，React 侧 draft 只是用于候选推导和按键分层的镜像。清空或覆写必须经过 `ComposerHandle`，确保两侧同步，不能因外部快照刷新重建用户输入。
 
 - Provider Status 描述当前输入目标与运行相位，是 composer 的组成部分而非独立历史层。`runStatus` 的 label 由接入方格式化，elapsed 根据 `startedAt` 在组件内跳秒，author 着色与 transcript 共用 `agentColorFor`。
-- Suggestions、Picker、ApprovalCard 与 QuestionCard 锚定输入区显示；请求排队和业务语义归 harness，chat-tui 只呈现当前请求并回传用户 intent。
+- Interaction Dock 锚定输入区，承载 Suggestions、Picker、ApprovalCard 与 QuestionCard；请求排队和业务语义归 harness，chat-tui 只呈现当前请求并回传用户 intent。
 
 Composer 体验不是封闭的功能清单。后续发现新的输入便利能力时继续沉淀在本节，并判断它是否减少输入过程的打断、保护已有内容和编辑意图，以及避免把可用性绑定到 transcript 或 agent 的运行状态。
 
-## Feedback 与 Footer
+## Toast 与 Footer
 
-Feedback 来自 `status`，只承载短寿命操作回执或错误，有内容时显示在 Footer 上方。Footer 来自 `footer`，承载用户随时可查的常驻状态；Feedback 出现时不得替换或隐藏 Footer。需要长期回看的信息应进入 Transcript，跨时间线的当前读模型可进入 Sidecar，而不是停留在 Feedback。
+Toast 来自 `toast`，只承载短寿命操作回执或错误，有内容时显示在 Footer 上方。Footer 来自 `footer`，承载用户随时可查的常驻状态；Toast 出现时不得替换或隐藏 Footer。需要长期回看的信息应进入 Transcript，跨时间线的当前读模型可进入 Sidecar，而不是停留在 Toast。

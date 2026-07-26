@@ -1,6 +1,6 @@
-// 三种底部锚定浮层：补全候选 / 命令 picker / 审批卡片。
+// Interaction Dock 的展示组件：补全候选、命令 picker、审批与结构化问题。
 // 都紧贴输入框上方（对齐 claude code 习惯：视线不用离开输入区），
-// anchorBottom 由消费方从 composerHeightFor(draft) + 状态行高度算出。
+// anchorBottom 由消费方从 composerHeightFor(draft) + Toast/Footer 高度算出。
 
 import type { InputRenderable } from "@opentui/core";
 import { useTerminalDimensions } from "@opentui/react";
@@ -28,12 +28,12 @@ interface SelectOption {
 export interface SuggestionsProps {
   candidates: Candidate[];
   selectedIndex: number;
-  /** 距屏幕底部的行数（输入框高度 + footer + 可选瞬时状态行） */
+  /** 距屏幕底部的行数（输入框高度 + footer + 可选 toast 行） */
   anchorBottom: number;
   theme?: Theme;
 }
 
-/** 补全候选浮层。↑↓/Tab/Esc 的按键处理归消费方（选中态从 selectedIndex 传入）。 */
+/** 补全候选。↑↓/Tab/Esc 的按键处理归消费方（选中态从 selectedIndex 传入）。 */
 export function Suggestions(props: SuggestionsProps): ReactNode {
   const theme = props.theme ?? defaultTheme;
   if (props.candidates.length === 0) return null;
@@ -109,7 +109,7 @@ export interface ApprovalCardProps {
   onSelect: (optionId: string) => void;
 }
 
-/** 审批卡片。比 Picker 的 zIndex 更高——审批永远压过其它浮层。 */
+/** 审批卡片。比 Picker 的 zIndex 更高——审批永远占据 Interaction Dock。 */
 export function ApprovalCard(props: ApprovalCardProps): ReactNode {
   const theme = props.theme ?? defaultTheme;
   const terminal = useTerminalDimensions();

@@ -1,6 +1,6 @@
 // ChatShell：把 ChatProtocol 接到全套组件上的一站式壳。
 // 接入方只需实现 ChatProtocol + 注入命令表/引用源，即得到完整 chat TUI：
-// 多行输入、slash/@ 补全、分层 Ctrl+C、队列召回、picker/审批浮层。
+// 多行输入、slash/@ 补全、分层 Ctrl+C、队列召回、Interaction Dock。
 
 import {
   useKeyboard,
@@ -15,8 +15,8 @@ import {
   defaultTheme,
   type CommandSpec,
   type InteractionView,
-  type StatusMessage,
   type Theme,
+  type ToastMessage,
 } from "../types/index.ts";
 import type { ClipPolicy } from "./clip.ts";
 import { parseSlashCommand } from "./commands.ts";
@@ -24,11 +24,11 @@ import { acceptCompletion, buildCandidates, triggerAt, type Candidate } from "./
 import { CTRL_C_CONFIRM_WINDOW_MS, ctrlCAction, escapeAction } from "./keys.ts";
 import { Composer, composerHeightFor, type ComposerHandle } from "./composer.tsx";
 import { InteractionDock } from "./interaction-dock.tsx";
-import { Picker, Suggestions } from "./overlays.tsx";
+import { Picker, Suggestions } from "./interaction-widgets.tsx";
 import { PlanPinned } from "./plan-pinned.tsx";
 import { InputArea } from "./queued.tsx";
 import { Sidecar, sidecarLayout } from "./sidecar.tsx";
-import { StatusLine } from "./status-line.tsx";
+import { ToastLine } from "./toast-line.tsx";
 import { useTokenSelectionOnDoubleClick } from "./token-selection.ts";
 import { Transcript } from "./transcript.tsx";
 
@@ -67,8 +67,8 @@ export function ChatShell(props: ChatShellProps): ReactNode {
   const [draft, setDraft] = useState("");
   const composer = useRef<ComposerHandle | null>(null);
   const [editingSuggestionId, setEditingSuggestionId] = useState<string | null>(null);
-  // 本地瞬时提示（Ctrl+C 二次确认等）；接入方的 view.status 优先级更高
-  const [localStatus, setLocalStatus] = useState<StatusMessage | null>(null);
+  // 本地 toast（Ctrl+C 二次确认等）优先于接入方 toast。
+  const [localToast, setLocalToast] = useState<ToastMessage | null>(null);
   const [suggIdx, setSuggIdx] = useState(0);
   const [suggDismissed, setSuggDismissed] = useState(false);
   const ctrlCArmedAt = useRef(0);
@@ -85,12 +85,12 @@ export function ChatShell(props: ChatShellProps): ReactNode {
     if (ctrlCExitTimer.current) clearTimeout(ctrlCExitTimer.current);
     ctrlCArmedAt.current = Date.now();
     ctrlCStatus.current = text;
-    setLocalStatus({ text, tone: "info" });
+    setLocalToast({ text, tone: "info" });
     ctrlCExitTimer.current = setTimeout(() => {
       ctrlCArmedAt.current = 0;
       ctrlCStatus.current = null;
       ctrlCExitTimer.current = null;
-      setLocalStatus((current) => (current?.text === text ? null : current));
+      setLocalToast((current) => (current?.text === text ? null : current));
     }, CTRL_C_CONFIRM_WINDOW_MS + 100);
   }, []);
 
@@ -101,7 +101,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
     ctrlCStatus.current = null;
     if (ctrlCExitTimer.current) clearTimeout(ctrlCExitTimer.current);
     ctrlCExitTimer.current = null;
-    if (status) setLocalStatus((current) => (current?.text === status ? null : current));
+    if (status) setLocalToast((current) => (current?.text === status ? null : current));
   }, []);
 
   useEffect(
@@ -152,14 +152,14 @@ export function ChatShell(props: ChatShellProps): ReactNode {
   const useSuggestedInput = useCallback(
     (interaction: Extract<InteractionView, { kind: "suggested_input" }>) => {
       if (draft) {
-        setLocalStatus({ text: "Clear the composer before using this suggestion", tone: "info" });
+        setLocalToast({ text: "Clear the composer before using this suggestion", tone: "info" });
         return;
       }
       setEditingSuggestionId(interaction.id);
       setDraft(interaction.text);
       composer.current?.setText(interaction.text);
       composer.current?.focus();
-      setLocalStatus(null);
+      setLocalToast(null);
     },
     [draft],
   );
@@ -170,7 +170,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
       if (!trimmed) return;
       const sourceSuggestion = editingSuggestion;
       resetComposer();
-      setLocalStatus(null);
+      setLocalToast(null);
       try {
         if (sourceSuggestion) {
           await protocol.resolveInteraction(sourceSuggestion.id, {
@@ -189,7 +189,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
         }
       } catch (error) {
         setEditingSuggestionId(null);
-        setLocalStatus({ text: error instanceof Error ? error.message : String(error), tone: "error" });
+        setLocalToast({ text: error instanceof Error ? error.message : String(error), tone: "error" });
       }
     },
     [editingSuggestion, props.commands, protocol, resetComposer],
@@ -209,7 +209,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
           kind: "suggested_input",
           outcome: "dismissed",
         });
-        setLocalStatus({ text: "Suggestion dismissed", tone: "info" });
+        setLocalToast({ text: "Suggestion dismissed", tone: "info" });
         return;
       }
       const action = ctrlCAction({ hasDraft: draft !== "", armedAt: ctrlCArmedAt.current, now: Date.now() });
@@ -288,7 +288,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
           releaseEditingSuggestion();
           setDraft(recalled.text);
           composer.current?.setText(recalled.text);
-          setLocalStatus({ text: "Recalled queued message; edit and resend", tone: "info" });
+          setLocalToast({ text: "Recalled queued message; edit and resend", tone: "info" });
           return;
         }
       }
@@ -318,9 +318,9 @@ export function ChatShell(props: ChatShellProps): ReactNode {
     }
   });
 
-  const visibleStatus = localStatus ?? view.status ?? null;
-  // 输入区随内容长高；footer 常驻一行，瞬时 status 存在时再占一行。
-  const overlayBottom = composerHeightFor(draft) + 1 + (visibleStatus ? 1 : 0);
+  const visibleToast = localToast ?? view.toast ?? null;
+  // 输入区随内容长高；footer 常驻一行，toast 存在时再占一行。
+  const dockBottom = composerHeightFor(draft) + 1 + (visibleToast ? 1 : 0);
 
   return (
     <box
@@ -357,19 +357,14 @@ export function ChatShell(props: ChatShellProps): ReactNode {
           />
         </InputArea>
 
-        <Suggestions
-          candidates={candidates}
-          selectedIndex={sel}
-          anchorBottom={overlayBottom}
-          theme={theme}
-        />
+        <Suggestions candidates={candidates} selectedIndex={sel} anchorBottom={dockBottom} theme={theme} />
 
-        <StatusLine status={visibleStatus} fallback={view.footer ?? ""} theme={theme} />
+        <ToastLine toast={visibleToast} fallback={view.footer ?? ""} theme={theme} />
 
         {picker && !blockingInteraction && !activeInteraction && (
           <Picker
             picker={picker}
-            anchorBottom={overlayBottom}
+            anchorBottom={dockBottom}
             theme={theme}
             onSelect={(value) => protocol.resolvePicker(picker.id, value)}
           />
@@ -377,7 +372,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
 
         <InteractionDock
           interactions={visibleInteractions}
-          anchorBottom={overlayBottom}
+          anchorBottom={dockBottom}
           canUseSuggestedInput={!draft}
           theme={theme}
           onResolve={(id, response) => void protocol.resolveInteraction(id, response)}
