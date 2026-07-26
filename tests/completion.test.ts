@@ -74,6 +74,26 @@ describe("buildCandidates", () => {
     const capped = buildCandidates({ kind: "at", start: 0, prefix: "" }, { commands, mentions }, { limit: 1 });
     expect(capped).toHaveLength(1);
   });
+
+  test("limit keeps each mention group visible before filling another", () => {
+    const groupedMentions = (): Candidate[] => [
+      { insert: "@s1", label: "S1", detail: "", group: "session" },
+      { insert: "@s2", label: "S2", detail: "", group: "session" },
+      { insert: "@s3", label: "S3", detail: "", group: "session" },
+      { insert: "@r1", label: "R1", detail: "", group: "reqloop@requirement" },
+      { insert: "@r2", label: "R2", detail: "", group: "reqloop@requirement" },
+    ];
+    const limited = buildCandidates(
+      { kind: "at", start: 0, prefix: "" },
+      { commands, mentions: groupedMentions },
+      { limit: 3 },
+    );
+    expect(limited.map((candidate) => candidate.insert)).toEqual([
+      "@s1",
+      "@s2",
+      "@r1",
+    ]);
+  });
 });
 
 describe("applyCompletion", () => {

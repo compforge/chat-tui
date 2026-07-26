@@ -35,6 +35,41 @@ export interface CompletionSources {
   mentions?: (prefix: string) => Candidate[];
 }
 
+function limitGrouped(
+  candidates: readonly Candidate[],
+  limit: number,
+): Candidate[] {
+  if (candidates.length <= limit) return [...candidates];
+  const groups = new Map<string, {
+    readonly candidates: Candidate[];
+    readonly selected: Candidate[];
+  }>();
+  for (const candidate of candidates) {
+    const key = candidate.group ?? "";
+    const group = groups.get(key) ?? {
+      candidates: [],
+      selected: [],
+    };
+    group.candidates.push(candidate);
+    groups.set(key, group);
+  }
+
+  let remaining = limit;
+  for (let index = 0; remaining > 0; index += 1) {
+    let added = false;
+    for (const group of groups.values()) {
+      const candidate = group.candidates[index];
+      if (!candidate) continue;
+      group.selected.push(candidate);
+      remaining -= 1;
+      added = true;
+      if (remaining === 0) break;
+    }
+    if (!added) break;
+  }
+  return [...groups.values()].flatMap((group) => group.selected);
+}
+
 export function buildCandidates(
   trigger: Trigger,
   sources: CompletionSources,
@@ -48,7 +83,7 @@ export function buildCandidates(
       .map((command) => ({ insert: `/${command.name}`, label: `/${command.name}`, detail: command.description }))
       .slice(0, limit);
   }
-  return (sources.mentions?.(trigger.prefix) ?? []).slice(0, limit);
+  return limitGrouped(sources.mentions?.(trigger.prefix) ?? [], limit);
 }
 
 /** 用选中的候选替换触发 token，返回新输入（尾随空格便于继续打字） */
