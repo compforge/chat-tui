@@ -24,7 +24,11 @@ import { acceptCompletion, buildCandidates, triggerAt, type Candidate } from "./
 import { CTRL_C_CONFIRM_WINDOW_MS, ctrlCAction, escapeAction } from "./keys.ts";
 import { Composer, composerHeightFor, type ComposerHandle } from "./composer.tsx";
 import { InteractionDock } from "./interaction-dock.tsx";
-import { Picker, Suggestions } from "./interaction-widgets.tsx";
+import {
+  Picker,
+  Suggestions,
+  visiblePickerOptions,
+} from "./interaction-widgets.tsx";
 import { PlanPinned } from "./plan-pinned.tsx";
 import { InputArea } from "./queued.tsx";
 import { Sidecar, sidecarLayout } from "./sidecar.tsx";
@@ -71,6 +75,11 @@ export function ChatShell(props: ChatShellProps): ReactNode {
   const [localToast, setLocalToast] = useState<ToastMessage | null>(null);
   const [suggIdx, setSuggIdx] = useState(0);
   const [suggDismissed, setSuggDismissed] = useState(false);
+  const [pickerInput, setPickerInput] = useState<{
+    id: string;
+    query: string;
+    selectedIndex: number;
+  } | null>(null);
   const ctrlCArmedAt = useRef(0);
   const ctrlCStatus = useRef<string | null>(null);
   const ctrlCExitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -129,6 +138,22 @@ export function ChatShell(props: ChatShellProps): ReactNode {
   const blockingInteraction =
     activeInteraction?.kind === "approval" || activeInteraction?.kind === "question";
   const picker = view.picker ?? null;
+  const activePickerInput =
+    pickerInput && picker && pickerInput.id === picker.id
+      ? pickerInput
+      : null;
+  const pickerQuery = activePickerInput
+    ? activePickerInput.query
+    : picker?.search?.query ?? "";
+  const pickerOptions = picker
+    ? visiblePickerOptions(picker, pickerQuery)
+    : [];
+  const pickerSelectedIndex = pickerOptions.length > 0
+    ? Math.min(
+      activePickerInput?.selectedIndex ?? 0,
+      pickerOptions.length - 1,
+    )
+    : 0;
   const candidates =
     trigger && !suggDismissed && !blockingInteraction && !picker
       ? buildCandidates(trigger, { commands: props.commands, mentions: props.mentions })
@@ -140,6 +165,18 @@ export function ChatShell(props: ChatShellProps): ReactNode {
   useEffect(() => {
     if (!blockingInteraction && !picker) composer.current?.focus();
   });
+
+  useEffect(() => {
+    setPickerInput(
+      picker
+        ? {
+          id: picker.id,
+          query: picker.search?.query ?? "",
+          selectedIndex: 0,
+        }
+        : null,
+    );
+  }, [picker?.id]);
 
   useEffect(() => {
     if (editingSuggestionId && !editingSuggestion) setEditingSuggestionId(null);
@@ -197,6 +234,20 @@ export function ChatShell(props: ChatShellProps): ReactNode {
 
   const busy = view.busy ?? false;
   const currentSidecarLayout = sidecarLayout(view.sidecar, terminal.width);
+  const updatePickerQuery = useCallback(
+    (query: string) => {
+      if (!picker?.search) return;
+      setPickerInput({
+        id: picker.id,
+        query,
+        selectedIndex: 0,
+      });
+      if (picker.search.mode === "remote") {
+        void protocol.searchPicker(picker.id, query);
+      }
+    },
+    [picker, protocol],
+  );
 
   useKeyboard((key) => {
     const isCtrlC = key.ctrl && key.name === "c";
@@ -243,6 +294,11 @@ export function ChatShell(props: ChatShellProps): ReactNode {
         protocol.dismissSidecar();
         return;
       }
+      if (picker?.search && pickerQuery) {
+        key.preventDefault();
+        updatePickerQuery("");
+        return;
+      }
       const action = escapeAction({
         busy,
         hasPicker: Boolean(picker && !blockingInteraction),
@@ -253,6 +309,31 @@ export function ChatShell(props: ChatShellProps): ReactNode {
       else if (action === "close-picker" && picker) protocol.resolvePicker(picker.id, null);
       else if (action === "dismiss-suggestions") setSuggDismissed(true);
       if (action !== "none") return;
+    }
+    if (
+      picker?.search &&
+      ["down", "up", "return", "kpenter"].includes(key.name)
+    ) {
+      key.preventDefault();
+      if (key.name === "down" && pickerOptions.length > 0) {
+        setPickerInput({
+          id: picker.id,
+          query: pickerQuery,
+          selectedIndex: (pickerSelectedIndex + 1) % pickerOptions.length,
+        });
+      } else if (key.name === "up" && pickerOptions.length > 0) {
+        setPickerInput({
+          id: picker.id,
+          query: pickerQuery,
+          selectedIndex:
+            (pickerSelectedIndex - 1 + pickerOptions.length) %
+            pickerOptions.length,
+        });
+      } else {
+        const selected = pickerOptions[pickerSelectedIndex];
+        if (selected) protocol.resolvePicker(picker.id, selected.value);
+      }
+      return;
     }
     if (candidates.length > 0 && ["down", "up", "tab", "return", "kpenter"].includes(key.name)) {
       // 候选浮层：↑/↓ 选择，Tab 补全，Enter 接受（slash 直接执行，@ 只插入），Esc 关闭。
@@ -364,8 +445,17 @@ export function ChatShell(props: ChatShellProps): ReactNode {
         {picker && !blockingInteraction && !activeInteraction && (
           <Picker
             picker={picker}
+            query={pickerQuery}
+            selectedIndex={pickerSelectedIndex}
             anchorBottom={dockBottom}
             theme={theme}
+            onQueryChange={updatePickerQuery}
+            onSelectionChange={(selectedIndex) =>
+              setPickerInput({
+                id: picker.id,
+                query: pickerQuery,
+                selectedIndex,
+              })}
             onSelect={(value) => protocol.resolvePicker(picker.id, value)}
           />
         )}

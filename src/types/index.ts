@@ -180,9 +180,19 @@ export interface PickerOption {
   value: string;
 }
 
+export interface PickerSearchView {
+  /** Local filters current options; remote asks the protocol owner for new options. */
+  mode: "local" | "remote";
+  /** Query represented by the current option snapshot. */
+  query?: string;
+  placeholder?: string;
+  loading?: boolean;
+}
+
 export interface PickerView {
   title: string;
   options: PickerOption[];
+  search?: PickerSearchView;
 }
 
 export interface QueuedItem {

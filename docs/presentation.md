@@ -57,6 +57,7 @@ Composer 是固定在历史区下方、供用户持续组织和修改输入的�
 
 - Provider Status 描述当前输入目标与运行相位，是 composer 的组成部分而非独立历史层。`runStatus` 的 label 由接入方格式化，elapsed 根据 `startedAt` 在组件内跳秒，author 着色与 transcript 共用 `agentColorFor`。
 - Interaction Dock 锚定输入区，承载 Suggestions、Picker、ApprovalCard 与 QuestionCard；请求排队和业务语义归 harness，chat-tui 只呈现当前请求并回传用户 intent。
+- Picker 可携带搜索框：本地模式即时过滤当前选项，远端模式展示 harness 返回的 loading/结果快照。搜索框聚焦时 ↑/↓ 仍移动选项、Enter 选择；Esc 先清空查询，再次 Esc 才关闭 Picker。
 
 Composer 体验不是封闭的功能清单。后续发现新的输入便利能力时继续沉淀在本节，并判断它是否减少输入过程的打断、保护已有内容和编辑意图，以及避免把可用性绑定到 transcript 或 agent 的运行状态。
 

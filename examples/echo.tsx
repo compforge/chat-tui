@@ -290,6 +290,8 @@ class EchoHarness implements ChatProtocol {
     });
   }
 
+  searchPicker(): void {}
+
   resolveInteraction(_id: string, response: InteractionResponse): void {
     this.patch({
       interactions: [],
