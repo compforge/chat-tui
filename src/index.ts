@@ -29,7 +29,7 @@ export {
   type PickerProps,
   type QuestionCardProps,
   type SuggestionsProps,
-} from "./components/overlays.tsx";
+} from "./components/interaction-widgets.tsx";
 export {
   InteractionDock,
   type InteractionDockProps,
@@ -37,7 +37,6 @@ export {
 export { PlanPinned, planWindow, type PlanPinnedProps, type PlanWindow } from "./components/plan-pinned.tsx";
 export { QueuedList, InputArea, queuedPreview, type QueuedListProps, type InputAreaProps } from "./components/queued.tsx";
 export { RunStatus, runStatusParts, runStatusTail, type RunStatusProps } from "./components/run-status.tsx";
-export { StatusLine, type StatusLineProps } from "./components/status-line.tsx";
 export {
   Sidecar,
   SIDECAR_BREAKPOINT,
@@ -47,5 +46,6 @@ export {
   type SidecarLayout,
   type SidecarProps,
 } from "./components/sidecar.tsx";
+export { ToastLine, type ToastLineProps } from "./components/toast-line.tsx";
 // 自定义壳（不用 ChatShell 自行组装组件）在根容器上挂一次，即可让全部可见文本获得双击选词
 export { useTokenSelectionOnDoubleClick } from "./components/token-selection.ts";

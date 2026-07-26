@@ -7,7 +7,7 @@ import {
   type InteractionView,
   type Theme,
 } from "../types/index.ts";
-import { ApprovalCard, QuestionCard } from "./overlays.tsx";
+import { ApprovalCard, QuestionCard } from "./interaction-widgets.tsx";
 
 export interface InteractionDockProps {
   interactions: readonly InteractionView[];

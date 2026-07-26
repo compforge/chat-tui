@@ -4,11 +4,11 @@
 // 刻意不定义 session / turn / provider / 事件流语义——那些归消费方的 harness 层；
 // 消费方把自家状态 reduce/映射成这里的视图形状（这层映射越薄，说明 harness 的事件模型越健康）。
 
-export type Tone = "info" | "error";
+export type ToastTone = "info" | "success" | "warning" | "error";
 
-export interface StatusMessage {
+export interface ToastMessage {
   text: string;
-  tone: Tone;
+  tone: ToastTone;
 }
 
 // 展示态分两根正交轴：outcome（结果如何）与 tone（是否需留意）。

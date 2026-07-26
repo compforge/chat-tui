@@ -16,7 +16,7 @@ import type {
   QueuedItem,
   RunStatusItem,
   SidecarView,
-  StatusMessage,
+  ToastMessage,
   TranscriptItem,
 } from "../types/index.ts";
 
@@ -49,8 +49,8 @@ export interface ChatViewState {
    * auto 模式仅在宽屏内联，open 模式在窄屏使用 overlay。
    */
   sidecar?: SidecarView;
-  /** 瞬时状态（错误/提示），有内容时展示在常驻 footer 上方 */
-  status?: StatusMessage | null;
+  /** 瞬时提示，有内容时展示在常驻 footer 上方。 */
+  toast?: ToastMessage | null;
   /** 常驻底部信息行（usage、队列长度、cwd 等） */
   footer?: string;
   composerPlaceholder?: string;
