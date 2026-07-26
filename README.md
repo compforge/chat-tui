@@ -53,7 +53,7 @@ bun examples/echo.tsx
 ## What you get
 
 - **Composer** — multi-line input: Enter submits, Shift+Enter / Option+Enter / Ctrl+J insert a newline; grows with content; bracketed-paste-safe (via opentui textarea)
-- **Completion** — `/` command and `@` mention candidates (Tab complete, ↑↓ select, Esc dismiss); command list and mention sources are injected
+- **Completion** — `/` command and searchable `@` mention candidates with optional group headings (Tab complete, ↑↓ select, Esc dismiss); command list and mention sources are injected
 - **Transcript** — sticky-bottom scroll; plain/Markdown messages plus unified activity blocks (`status + kind + author? + title + content`) for thoughts, tools, plans, and custom activity; Markdown supports streaming updates, code fences, tables, and links; per-item render override remains available
 - **Height budget** — long text, output, command, and code content is clipped to a visual-row budget (wrap-aware, so one long line can't flood the viewport), while diffs stay fully visible like Codex; `… +N lines (ctrl+o to expand)` hints and Ctrl+O toggles clipped content; the clip policy is injectable (`clipPolicy`) and data is never truncated
 - **Steering queue** — queued follow-up inputs rendered with previews; ↑ recalls the latest queued message for editing (the queue itself lives in your harness)

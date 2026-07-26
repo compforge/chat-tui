@@ -9,6 +9,8 @@ export interface Candidate {
   insert: string;
   label: string;
   detail: string;
+  /** Optional section heading; adjacent candidates with the same group share one heading. */
+  group?: string;
 }
 
 export interface Trigger {
@@ -22,7 +24,7 @@ export function triggerAt(text: string): Trigger | null {
   // 斜杠命令只在行首（TUI 惯例：/ 开头是命令，不是内容）
   const slash = /^\/([A-Za-z]*)$/.exec(text);
   if (slash) return { kind: "slash", start: 0, prefix: slash[1] as string };
-  const at = /(^|\s)@([A-Za-z0-9_-]*)$/.exec(text);
+  const at = /(^|\s)@([^\s@]*)$/u.exec(text);
   if (at) return { kind: "at", start: (at.index ?? 0) + (at[1] as string).length, prefix: at[2] as string };
   return null;
 }
