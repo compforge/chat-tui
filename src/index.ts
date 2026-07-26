@@ -25,6 +25,7 @@ export {
   Picker,
   QuestionCard,
   Suggestions,
+  visiblePickerOptions,
   type ApprovalCardProps,
   type PickerProps,
   type QuestionCardProps,

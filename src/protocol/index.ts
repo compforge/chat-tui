@@ -3,7 +3,7 @@
 //   输出（接入方 → TUI）：getView() 返回完整视图快照 + subscribe() 变更通知。
 //     选快照而非增量事件：TUI 规模下全量重渲染足够便宜，接入方不用维护
 //     delta 语义，本地 harness 和远端转发（SSE/WebSocket → 本地状态）实现同构。
-//   输入（TUI → 接入方）：submit / command / cancel / exit / resolvePicker /
+//   输入（TUI → 接入方）：submit / command / cancel / exit / searchPicker / resolvePicker /
 //     resolveInteraction / recallQueued。这些是用户意图（intent，MVI 语义）：TUI 已把
 //     原始按键翻译成语义级请求，只表达"用户想干什么"；如何执行（发本地进程还是
 //     远端、cancel 映射到哪家 provider 的 interrupt）由接入方决定。
@@ -82,6 +82,8 @@ export interface ChatProtocol {
   exit(): void | Promise<void>;
   /** picker 选择结果；用户 Esc 关闭时 value 为 null */
   resolvePicker(id: string, value: string | null): void;
+  /** 远端搜索型 picker 的查询变化；debounce、取消与结果归并由接入方负责。 */
+  searchPicker(id: string, query: string): void | Promise<void>;
   /** InteractionDock 收集的统一响应；接入方按 id 与 kind 收口真实生命周期。 */
   resolveInteraction(id: string, response: InteractionResponse): void | Promise<void>;
   /** 窄屏 overlay 的 Esc 关闭意图；显示状态仍由下一份视图快照决定。 */

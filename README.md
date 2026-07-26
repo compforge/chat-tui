@@ -31,6 +31,7 @@ class MyHarness implements ChatProtocol {
   command(name: string, argument: string) { /* /model, /exit, … */ }
   cancel() { /* interrupt the running turn */ }
   exit() { /* graceful shutdown */ }
+  searchPicker(id: string, query: string) { /* refresh a remote-search picker */ }
   resolvePicker(id: string, value: string | null) { /* … */ }
   resolveApproval(id: string, optionId: string) { /* … */ }
   resolveQuestion(id: string, answers: Record<string, string[]>) { /* … */ }
@@ -80,7 +81,7 @@ chat-tui describes UI capabilities, not provider capabilities. A check here mean
 | Queued follow-up | `queued` + `recallQueued()` | Yes | Display and recall only; the harness owns the queue |
 | Input recall / history | ↑/↓ → `recallQueued()` / `historyPrev()` / `historyNext()` | Yes | ↑ recalls a queued input first (empty draft), then walks input history when the cursor is at a buffer boundary; ↓ walks forward and restores the stashed draft. The harness owns the history list and decides continuation |
 | Same-turn steer | No distinct intent | No | A queued follow-up is not the same as steering an active provider turn |
-| Generic single choice | `picker` → `resolvePicker()` | Yes | One question, one option, or dismiss; suitable for model/session selection |
+| Generic single choice | `picker` → `resolvePicker()` | Yes | Supports static choices, local filtering, and harness-owned remote search; suitable for model/session/resource selection |
 | Permission decision | `InteractionView(kind: "approval")` → `resolveInteraction()` | Yes | One request with provider-defined options; intentionally not dismissible |
 | Structured agent question | `InteractionView(kind: "question")` → `resolveInteraction()` | Partial | Multiple questions, multi-select, free text/“Other”, and previews are supported; `secret` is carried in the view contract but the default terminal input is not masked |
 | Structured elicitation/form | — | No | Arbitrary MCP/provider forms are outside the current protocol |
@@ -109,6 +110,7 @@ chat-tui describes UI capabilities, not provider capabilities. A check here mean
 | TUI → harness | `submit(text)` | user message; recognized slash commands go to `command()` instead |
 | TUI → harness | `command(name, argument)` | registered slash command invocation |
 | TUI → harness | `cancel()` / `exit()` | interrupt turn / graceful shutdown |
+| TUI → harness | `searchPicker(id, query)` | query change for a remote-search picker; the harness owns debounce, I/O, and stale-result handling |
 | TUI → harness | `resolvePicker(...)` / `resolveInteraction(...)` | answers to picker or InteractionDock requests |
 | TUI → harness | `dismissSidecar()` | optional intent emitted when Esc closes a narrow-screen sidecar overlay |
 | TUI → harness | `recallQueued()` | ↑ recall of the latest queued input |

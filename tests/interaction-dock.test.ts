@@ -33,6 +33,7 @@ function testProtocol(initial: ChatViewState) {
     cancel: () => {},
     exit: () => {},
     resolvePicker: () => {},
+    searchPicker: () => {},
     resolveInteraction(id, response) {
       responses.push({ id, response });
     },

@@ -89,6 +89,7 @@ describe("double-click selection", () => {
       cancel: () => {},
       exit: () => {},
       resolvePicker: () => {},
+      searchPicker: () => {},
       resolveInteraction: () => {},
     };
     let copied = "";
@@ -131,6 +132,7 @@ describe("double-click selection", () => {
       cancel: () => {},
       exit: () => {},
       resolvePicker: () => {},
+      searchPicker: () => {},
       resolveInteraction: () => {},
     };
     let copied = "";
@@ -169,6 +171,7 @@ describe("double-click selection", () => {
       cancel: () => {},
       exit: () => {},
       resolvePicker: () => {},
+      searchPicker: () => {},
       resolveInteraction: () => {},
     };
     let copied = "";
