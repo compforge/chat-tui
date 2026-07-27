@@ -109,6 +109,7 @@ export function visiblePickerOptions(
 /** 命令 picker（选 provider / model / session 等）。键盘分层由 ChatShell 统一编排。 */
 export function Picker(props: PickerProps): ReactNode {
   const theme = props.theme ?? defaultTheme;
+  const terminal = useTerminalDimensions();
   const query = props.query ?? props.picker.search?.query ?? "";
   const options = visiblePickerOptions(props.picker, query);
   const selectedIndex = options.length > 0
@@ -130,7 +131,7 @@ export function Picker(props: PickerProps): ReactNode {
         position: "absolute",
         left: 2,
         bottom: props.anchorBottom,
-        width: 72,
+        width: Math.min(84, Math.max(20, terminal.width - 4)),
         height: Math.min(
           20,
           Math.max(4 + searchRows, options.length * 2 + 2 + searchRows + statusRows),
