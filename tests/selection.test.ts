@@ -4,7 +4,7 @@ import { createTestRenderer, type TestRendererSetup } from "@opentui/core/testin
 import { createRoot, type Root } from "@opentui/react";
 import { createElement } from "react";
 
-import { ChatShell } from "../src/components/chat-shell.tsx";
+import { ChatShell } from "../src/chat/shell.tsx";
 import { Transcript, type TranscriptProps } from "../src/components/transcript.tsx";
 import type { ChatProtocol, ChatViewState } from "../src/protocol/index.ts";
 import { tokenColumnRange, visualLineAt } from "../src/components/selection.ts";

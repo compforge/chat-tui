@@ -4,8 +4,10 @@ import { createTestRenderer, type TestRendererSetup } from "@opentui/core/testin
 import { createRoot, type Root } from "@opentui/react";
 import { createElement } from "react";
 
-import { ChatShell } from "../src/components/chat-shell.tsx";
+import { ChatShell } from "../src/chat/shell.tsx";
 import type { ChatProtocol, ChatViewState } from "../src/protocol/index.ts";
+import { createChatSurfaceStore } from "../src/protocol/surfaces.ts";
+import { chatSurfaceStateFromView } from "../src/protocol/view.ts";
 import type { InteractionResponse } from "../src/types/index.ts";
 
 let mounted: { root: Root; setup: TestRendererSetup } | null = null;
@@ -61,6 +63,34 @@ async function mount(protocol: ChatProtocol) {
 }
 
 describe("InteractionDock", () => {
+  test("preserves the active composer while the sidecar updates", async () => {
+    const harness = testProtocol({ transcript: [] });
+    const runtime = createChatSurfaceStore(
+      chatSurfaceStateFromView(harness.protocol.getView()),
+    );
+    harness.protocol.surfaces = runtime;
+    const { setup, composer } = await mount(harness.protocol);
+
+    for (const key of "draft") setup.mockInput.pressKey(key);
+    await setup.waitFor(() => composer.plainText === "draft");
+
+    runtime.commit({
+      sidecar: {
+        title: "Board",
+        mode: "open",
+        sections: [{ id: "active", items: [{ id: "task", title: "Reconcile" }] }],
+      },
+    });
+    await setup.flush();
+
+    const currentComposer = [...Renderable.renderablesByNumber.values()].find(
+      (renderable): renderable is TextareaRenderable =>
+        renderable instanceof TextareaRenderable,
+    );
+    expect(currentComposer).toBe(composer);
+    expect(currentComposer?.plainText).toBe("draft");
+  });
+
   test("shows a suggested input without overwriting the composer", async () => {
     const harness = testProtocol({
       transcript: [],

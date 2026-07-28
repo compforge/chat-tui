@@ -91,11 +91,11 @@ chat-tui describes UI capabilities, not provider capabilities. A check here mean
 | Output | View shape | Support | Boundary |
 |---|---|---|---|
 | User/agent text | `TranscriptItem.message` | Yes | Explicit plain/Markdown format; plain is the backward-compatible default, and streaming Markdown uses `streaming: true` until complete |
-| Streaming updates | Repeated immutable `ChatViewState` snapshots | Yes | The harness reduces provider deltas before publishing a snapshot |
+| Streaming updates | Stable Surface snapshots | Yes | The harness reduces provider deltas before publishing; timeline updates do not notify composer or sidecar subscribers |
 | Thought/tool/plan/custom activity | `TranscriptItem.block` | Yes | `kind` is open; optional `author` labels attribution in multi-agent timelines; chat-tui does not interpret provider events |
 | Block content | `text` / `lines` / `plan` / `code` / `command` / `output` / `diff` | Yes | Code uses Tree-sitter syntax highlighting; diff uses a Codex-style, line-numbered unified view with file headers and colored add/remove statistics |
 | Long content | Text/output/code/command are clipped to a visual-row budget; diffs stay expanded | Yes | Pass full content; clipping is display-only, Ctrl+O expands clipped blocks, and the policy (`clipPolicy`) is injectable |
-| Provider status and usage | `runStatus` / `toast` / `footer` | Yes | `runStatus` renders as present-tense status lines attached to the composer top (first item = current input target + run phase, extra items = other active agents; author colored via `agentColorFor`, elapsed ticks locally from `startedAt`); labels are preformatted — semantics stay in the harness |
+| Provider status and usage | `runStatus` / `toast` / `footer` | Yes | `runStatus` renders in ActivitySurface above the editor (first item = current input target + run phase, extra items = other active agents; author colored via `agentColorFor`, elapsed ticks locally from `startedAt`); toast and persistent status render in FooterSurface; labels are preformatted — semantics stay in the harness |
 | Auxiliary sidecar | `sidecar` | Yes | Display-ready sections/items only; empty data hides completely, wide terminals render inline, and narrow terminals require `mode: "open"` |
 | Pinned plan | `plan` | Yes | Pins the active plan above the queued list; long plans window around the first unfinished entry; visibility policy belongs to the harness (send entries only while unfinished) |
 | Human interaction | `interactions: InteractionView[]` | Yes | InteractionDock presents the first ordered request and shows queue position; blocking policy and durable lifecycle remain in the harness |
@@ -105,8 +105,9 @@ chat-tui describes UI capabilities, not provider capabilities. A check here mean
 
 | Direction | Surface | Meaning |
 |---|---|---|
-| harness → TUI | `getView(): ChatViewState` | full view snapshot: transcript items, busy, queued, ordered interactions, picker, optional sidecar, toast, footer |
-| harness → TUI | `subscribe(cb)` | change notification; `getView()` must return a stable reference between changes |
+| harness → TUI | `surfaces` | preferred: stable `timeline` / `composer` / `activity` / `footer` / `sidecar` channels created with `createChatSurfaceStore()` |
+| harness → TUI | `surfaceStore.commit(patch)` | atomically replaces one or more Surface snapshots and notifies only changed Surface subscribers |
+| harness → TUI | `getView()` / `subscribe(cb)` | compatibility path for a full `ChatViewState`; `ChatShell` adapts it into the channel model |
 | TUI → harness | `submit(text)` | user message; recognized slash commands go to `command()` instead |
 | TUI → harness | `command(name, argument)` | registered slash command invocation |
 | TUI → harness | `cancel()` / `exit()` | interrupt turn / graceful shutdown |

@@ -1,8 +1,8 @@
 // chat-tui 的接入协议：接入方实现 ChatProtocol，ChatShell 负责渲染与交互。
 //
-//   输出（接入方 → TUI）：getView() 返回完整视图快照 + subscribe() 变更通知。
-//     选快照而非增量事件：TUI 规模下全量重渲染足够便宜，接入方不用维护
-//     delta 语义，本地 harness 和远端转发（SSE/WebSocket → 本地状态）实现同构。
+//   输出（接入方 → TUI）：surfaces 提供五个独立订阅的稳定快照。
+//     getView() + subscribe() 是兼容入口；新接入方应提供 surfaces，避免无关
+//     read model 变化让 timeline / composer / activity / footer / sidecar 互相触发重渲染。
 //   输入（TUI → 接入方）：submit / command / cancel / exit / searchPicker / resolvePicker /
 //     resolveInteraction / recallQueued。这些是用户意图（intent，MVI 语义）：TUI 已把
 //     原始按键翻译成语义级请求，只表达"用户想干什么"；如何执行（发本地进程还是
@@ -10,58 +10,19 @@
 
 import type {
   InteractionResponse,
-  InteractionView,
-  PickerView,
-  PlanEntry,
-  QueuedItem,
-  RunStatusItem,
-  SidecarView,
-  ToastMessage,
-  TranscriptItem,
 } from "../types/index.ts";
+import type { ChatSurfaces } from "./surfaces.ts";
+import type { ChatViewState } from "./view.ts";
 
-export interface ChatViewState {
-  transcript: TranscriptItem[];
-  /** 有 turn 在跑：Esc 变为"打断"，输入框边框高亮 */
-  busy?: boolean;
-  /**
-   * Provider Status 区：贴 composer 顶部的"现在时"状态行，不随历史滚动。
-   * 首条为主行（当前输入目标 + 运行相位），其余为附加行（其他活跃 agent / 子 agent）。
-   * 空/缺省即隐藏不占高度。
-   */
-  runStatus?: RunStatusItem[];
-  /**
-   * pin 在 composer 上方的 plan（"何时显示"归接入方：建议仅在有未完成项时下发，
-   * 全部完成后停发即自动消失）；空/缺省即隐藏不占高度。
-   */
-  plan?: PlanEntry[];
-  /** 排队中的 steer 输入（队列本体归接入方） */
-  queued?: QueuedItem[];
-  /** 接入方请求 TUI 弹选择浮层；用户选择/关闭通过 resolvePicker 回传 */
-  picker?: (PickerView & { id: string }) | null;
-  /**
-   * 当前等待用户参与的请求，按展示优先级排序。InteractionDock 只展示首项并标记总数；
-   * blocking、排队和持久生命周期均由接入方决定。
-   */
-  interactions?: InteractionView[];
-  /**
-   * 与主对话并列的可选辅助视图。无有效条目时隐藏且不占宽度；
-   * auto 模式仅在宽屏内联，open 模式在窄屏使用 overlay。
-   */
-  sidecar?: SidecarView;
-  /** 瞬时提示，有内容时展示在常驻 footer 上方。 */
-  toast?: ToastMessage | null;
-  /** 常驻底部信息行（usage、队列长度、cwd 等） */
-  footer?: string;
-  composerPlaceholder?: string;
-  /** 时间线顶部说明（产品名、快捷键提示） */
-  header?: string;
-  /** thought 消息是否渲染 */
-  showThoughts?: boolean;
-}
+export type { ChatViewState } from "./view.ts";
 
 export interface ChatProtocol {
   // ===== 输出：接入方 → TUI =====
+  /**
+   * 五个 Surface 各自订阅的 read model。存在时 ChatShell 不再订阅完整 getView()；
+   * 接入方通常用 createChatSurfaceStore 创建并提交。
+   */
+  surfaces?: ChatSurfaces;
   /**
    * 返回当前视图快照。ChatShell 用 useSyncExternalStore 消费：
    * 未变化时必须返回同一对象引用（变化时换新对象），否则会触发无限重渲染。

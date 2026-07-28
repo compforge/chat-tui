@@ -89,7 +89,7 @@ export type TranscriptItem =
     };
 
 /**
- * Provider Status 区（贴 composer 顶部）的一条状态行（"现在时"信息：输入目标 / 运行相位）。
+ * ActivitySurface 的一条状态行（"现在时"信息：输入目标 / 运行相位）。
  * 阶段语义归消费方：chat-tui 只负责渲染与 elapsed 跳秒，不理解 label 含义。
  */
 export interface RunStatusItem {

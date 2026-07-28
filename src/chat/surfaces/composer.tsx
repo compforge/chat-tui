@@ -1,78 +1,73 @@
-// ChatShell：把 ChatProtocol 接到全套组件上的一站式壳。
-// 接入方只需实现 ChatProtocol + 注入命令表/引用源，即得到完整 chat TUI：
-// 多行输入、slash/@ 补全、分层 Ctrl+C、队列召回、Interaction Dock。
+// ComposerSurface：持有 draft、焦点和输入交互，只订阅 composer Surface。
+
+import { useKeyboard } from "@opentui/react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 
 import {
-  useKeyboard,
-  useRenderer,
-  useSelectionHandler,
-  useTerminalDimensions,
-} from "@opentui/react";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-
-import type { ChatProtocol } from "../protocol/index.ts";
+  ComposerEditor,
+  composerHeightFor,
+  type ComposerHandle,
+} from "../../components/composer.tsx";
+import { parseSlashCommand } from "../../components/commands.ts";
 import {
-  defaultTheme,
-  type CommandSpec,
-  type InteractionView,
-  type Theme,
-  type ToastMessage,
-} from "../types/index.ts";
-import type { ClipPolicy } from "./clip.ts";
-import { parseSlashCommand } from "./commands.ts";
-import { acceptCompletion, buildCandidates, triggerAt, type Candidate } from "./completion.ts";
-import { CTRL_C_CONFIRM_WINDOW_MS, ctrlCAction, escapeAction } from "./keys.ts";
-import { Composer, composerHeightFor, type ComposerHandle } from "./composer.tsx";
-import { InteractionDock } from "./interaction-dock.tsx";
+  acceptCompletion,
+  buildCandidates,
+  triggerAt,
+  type Candidate,
+} from "../../components/completion.ts";
+import { InteractionDock } from "../../components/interaction-dock.tsx";
 import {
   Picker,
   Suggestions,
   visiblePickerOptions,
-} from "./interaction-widgets.tsx";
-import { PlanPinned } from "./plan-pinned.tsx";
-import { InputArea } from "./queued.tsx";
-import { Sidecar, sidecarLayout } from "./sidecar.tsx";
-import { ToastLine } from "./toast-line.tsx";
-import { useTokenSelectionOnDoubleClick } from "./token-selection.ts";
-import { Transcript } from "./transcript.tsx";
+} from "../../components/interaction-widgets.tsx";
+import { CTRL_C_CONFIRM_WINDOW_MS, ctrlCAction, escapeAction } from "../../components/keys.ts";
+import { InputArea } from "../../components/queued.tsx";
+import type { SidecarLayout } from "../../components/sidecar.tsx";
+import type { ChatProtocol } from "../../protocol/index.ts";
+import type { ChatSurfaces } from "../../protocol/surfaces.ts";
+import { useSurface } from "../../surface.ts";
+import {
+  type CommandSpec,
+  type InteractionView,
+  type Theme,
+  type ToastMessage,
+} from "../../types/index.ts";
+import { ActivitySurface } from "./activity.tsx";
 
 const CTRL_C_EXIT_HINT = "Press Ctrl+C again to exit";
 const CTRL_C_CLEARED_HINT = "Draft cleared; press Ctrl+C again to exit";
 
-export interface ChatShellProps {
+export interface ComposerSurfaceProps {
   protocol: ChatProtocol;
-  /** slash 命令表（补全 + 识别）；语义执行走 protocol.command() */
+  surfaces: ChatSurfaces;
   commands: readonly CommandSpec[];
-  /** @ 引用候选源；不传则 @ 不触发补全 */
   mentions?: (prefix: string) => Candidate[];
-  theme?: Theme;
-  /** transcript 高度预算策略；缺省 defaultClipPolicy（Ctrl+O 展开/收起） */
-  clipPolicy?: ClipPolicy;
+  theme: Theme;
+  sidecarLayout: SidecarLayout;
+  setLocalToast: Dispatch<SetStateAction<ToastMessage | null>>;
 }
 
-export function ChatShell(props: ChatShellProps): ReactNode {
+export const ComposerSurface = memo(function ComposerSurface(
+  props: ComposerSurfaceProps,
+): ReactNode {
   const { protocol } = props;
-  const theme = props.theme ?? defaultTheme;
-  const renderer = useRenderer();
-  const terminal = useTerminalDimensions();
-  useSelectionHandler((selection) => {
-    const selectedText = selection.getSelectedText();
-    if (selectedText) renderer.copyToClipboardOSC52(selectedText);
-  });
-  // 双击选词是壳内一切可见文本的通性，只在根容器挂这一处：鼠标事件带着命中
-  // target 沿 parent 链冒泡，所有后代文本（含未来新增的组件）天然被覆盖，
-  // 不再 per-widget 挂载——那条路每加一种文本 renderable 就漏一次。
-  const selectTokenOnDoubleClick = useTokenSelectionOnDoubleClick();
-  const view = useSyncExternalStore(
-    useCallback((onChange) => protocol.subscribe(onChange), [protocol]),
-    () => protocol.getView(),
-  );
+  const theme = props.theme;
+  const composerView = useSurface(props.surfaces.composer);
+  const setLocalToast = props.setLocalToast;
 
   const [draft, setDraft] = useState("");
   const composer = useRef<ComposerHandle | null>(null);
   const [editingSuggestionId, setEditingSuggestionId] = useState<string | null>(null);
-  // 本地 toast（Ctrl+C 二次确认等）优先于接入方 toast。
-  const [localToast, setLocalToast] = useState<ToastMessage | null>(null);
   const [suggIdx, setSuggIdx] = useState(0);
   const [suggDismissed, setSuggDismissed] = useState(false);
   const [pickerInput, setPickerInput] = useState<{
@@ -122,7 +117,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
 
   // 候选由输入实时推导（/ 行首=命令，@ =引用），无独立状态需要同步
   const trigger = triggerAt(draft);
-  const interactions = view.interactions ?? [];
+  const interactions = composerView.interactions ?? [];
   const editingSuggestion = editingSuggestionId
     ? interactions.find(
         (
@@ -137,7 +132,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
   const activeInteraction = visibleInteractions[0] ?? null;
   const blockingInteraction =
     activeInteraction?.kind === "approval" || activeInteraction?.kind === "question";
-  const picker = view.picker ?? null;
+  const picker = composerView.picker ?? null;
   const activePickerInput =
     pickerInput && picker && pickerInput.id === picker.id
       ? pickerInput
@@ -232,8 +227,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
     [editingSuggestion, props.commands, protocol, resetComposer],
   );
 
-  const busy = view.busy ?? false;
-  const currentSidecarLayout = sidecarLayout(view.sidecar, terminal.width);
+  const busy = composerView.busy ?? false;
   const updatePickerQuery = useCallback(
     (query: string) => {
       if (!picker?.search) return;
@@ -289,7 +283,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
       return;
     }
     if (key.name === "escape") {
-      if (currentSidecarLayout === "overlay" && protocol.dismissSidecar) {
+      if (props.sidecarLayout === "overlay" && protocol.dismissSidecar) {
         key.preventDefault();
         protocol.dismissSidecar();
         return;
@@ -399,93 +393,77 @@ export function ChatShell(props: ChatShellProps): ReactNode {
     }
   });
 
-  const visibleToast = localToast ?? view.toast ?? null;
-  // 输入区随内容长高；footer 常驻一行，toast 存在时再占一行。
-  const dockBottom = composerHeightFor(draft) + 1 + (visibleToast ? 1 : 0);
+  // Overlay 固定为 FooterSurface 预留两行（toast + footer），让 footer 更新
+  // 无需反向通知 ComposerSurface 重新计算锚点。
+  const dockBottom = composerHeightFor(draft) + 2;
+  const handleComposerChange = useCallback(
+    (text: string) => {
+      if (text) disarmCtrlCExit();
+      setDraft(text);
+      setSuggDismissed(false);
+      setSuggIdx(0);
+    },
+    [disarmCtrlCExit],
+  );
+  const handleComposerSubmit = useCallback(
+    (text: string) => void send(text),
+    [send],
+  );
 
   return (
-    <box
-      style={{ flexDirection: "row", flexGrow: 1, position: "relative" }}
-      onMouseDown={selectTokenOnDoubleClick}
-    >
-      <box style={{ flexDirection: "column", flexGrow: 1, position: "relative" }}>
-        <Transcript
-          header={view.header}
-          items={view.transcript}
-          showThoughts={view.showThoughts}
-          theme={theme}
-          clipPolicy={props.clipPolicy}
-        />
-
-        {/* scrollbox 外都是"非过去时"：plan pin（进行中）→ 队列（将来时）→ composer（现在时，Provider Status 挂其顶部） */}
-        <PlanPinned entries={view.plan ?? []} theme={theme} />
-
-        <InputArea items={view.queued ?? []} theme={theme}>
-          <Composer
+    <>
+      <InputArea items={composerView.queued ?? []} theme={theme}>
+        <box
+          style={{
+            width: "100%",
+            flexShrink: 0,
+            marginTop: 1,
+            flexDirection: "column",
+          }}
+        >
+          <ActivitySurface
+            surfaces={props.surfaces}
+            theme={theme}
+          />
+          <ComposerEditor
             ref={composer}
-            status={view.runStatus}
-            placeholder={view.composerPlaceholder}
+            placeholder={composerView.placeholder}
             focused={!blockingInteraction && !picker}
             busy={busy}
             theme={theme}
-            onChange={(text) => {
-              if (text) disarmCtrlCExit();
-              setDraft(text);
-              setSuggDismissed(false);
-              setSuggIdx(0);
-            }}
-            onSubmit={(text) => void send(text)}
+            onChange={handleComposerChange}
+            onSubmit={handleComposerSubmit}
           />
-        </InputArea>
-
-        <Suggestions candidates={candidates} selectedIndex={sel} anchorBottom={dockBottom} theme={theme} />
-
-        <ToastLine toast={visibleToast} fallback={view.footer ?? ""} theme={theme} />
-
-        {picker && !blockingInteraction && !activeInteraction && (
-          <Picker
-            picker={picker}
-            query={pickerQuery}
-            selectedIndex={pickerSelectedIndex}
-            anchorBottom={dockBottom}
-            theme={theme}
-            onQueryChange={updatePickerQuery}
-            onSelectionChange={(selectedIndex) =>
-              setPickerInput({
-                id: picker.id,
-                query: pickerQuery,
-                selectedIndex,
-              })}
-            onSelect={(value) => protocol.resolvePicker(picker.id, value)}
-          />
-        )}
-
-        <InteractionDock
-          interactions={visibleInteractions}
-          anchorBottom={dockBottom}
-          canUseSuggestedInput={!draft}
-          theme={theme}
-          onResolve={(id, response) => void protocol.resolveInteraction(id, response)}
-        />
-      </box>
-
-      {currentSidecarLayout === "inline" && view.sidecar ? (
-        <Sidecar view={view.sidecar} theme={theme} />
-      ) : null}
-
-      {currentSidecarLayout === "overlay" && view.sidecar ? (
-        <box
-          style={{
-            position: "absolute",
-            top: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 300,
-          }}
-        >
-          <Sidecar view={view.sidecar} theme={theme} overlay />
         </box>
-      ) : null}
-    </box>
+      </InputArea>
+
+      <Suggestions candidates={candidates} selectedIndex={sel} anchorBottom={dockBottom} theme={theme} />
+
+      {picker && !blockingInteraction && !activeInteraction && (
+        <Picker
+          picker={picker}
+          query={pickerQuery}
+          selectedIndex={pickerSelectedIndex}
+          anchorBottom={dockBottom}
+          theme={theme}
+          onQueryChange={updatePickerQuery}
+          onSelectionChange={(selectedIndex) =>
+            setPickerInput({
+              id: picker.id,
+              query: pickerQuery,
+              selectedIndex,
+            })}
+          onSelect={(value) => protocol.resolvePicker(picker.id, value)}
+        />
+      )}
+
+      <InteractionDock
+        interactions={visibleInteractions}
+        anchorBottom={dockBottom}
+        canUseSuggestedInput={!draft}
+        theme={theme}
+        onResolve={(id, response) => void protocol.resolveInteraction(id, response)}
+      />
+    </>
   );
-}
+});
