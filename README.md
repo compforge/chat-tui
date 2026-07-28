@@ -91,7 +91,7 @@ chat-tui describes UI capabilities, not provider capabilities. A check here mean
 | Output | View shape | Support | Boundary |
 |---|---|---|---|
 | User/agent text | `TranscriptItem.message` | Yes | Explicit plain/Markdown format; plain is the backward-compatible default, and streaming Markdown uses `streaming: true` until complete |
-| Streaming updates | Stable per-surface presentation snapshots | Yes | The harness reduces provider deltas before publishing; transcript updates do not notify input or sidecar subscribers |
+| Streaming updates | Stable Surface snapshots | Yes | The harness reduces provider deltas before publishing; timeline updates do not notify composer or sidecar subscribers |
 | Thought/tool/plan/custom activity | `TranscriptItem.block` | Yes | `kind` is open; optional `author` labels attribution in multi-agent timelines; chat-tui does not interpret provider events |
 | Block content | `text` / `lines` / `plan` / `code` / `command` / `output` / `diff` | Yes | Code uses Tree-sitter syntax highlighting; diff uses a Codex-style, line-numbered unified view with file headers and colored add/remove statistics |
 | Long content | Text/output/code/command are clipped to a visual-row budget; diffs stay expanded | Yes | Pass full content; clipping is display-only, Ctrl+O expands clipped blocks, and the policy (`clipPolicy`) is injectable |
@@ -105,8 +105,8 @@ chat-tui describes UI capabilities, not provider capabilities. A check here mean
 
 | Direction | Surface | Meaning |
 |---|---|---|
-| harness → TUI | `presentation` | preferred: stable `timeline` / `composer` / `activity` / `footer` / `sidecar` Surface channels created with `createChatPresentationRuntime()` |
-| harness → TUI | `presentation.commit(patch)` | atomically replaces one or more Surface snapshots and notifies only changed Surface subscribers |
+| harness → TUI | `surfaces` | preferred: stable `timeline` / `composer` / `activity` / `footer` / `sidecar` channels created with `createChatSurfaceStore()` |
+| harness → TUI | `surfaceStore.commit(patch)` | atomically replaces one or more Surface snapshots and notifies only changed Surface subscribers |
 | harness → TUI | `getView()` / `subscribe(cb)` | compatibility path for a full `ChatViewState`; `ChatShell` adapts it into the channel model |
 | TUI → harness | `submit(text)` | user message; recognized slash commands go to `command()` instead |
 | TUI → harness | `command(name, argument)` | registered slash command invocation |

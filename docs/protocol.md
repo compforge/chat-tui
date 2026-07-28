@@ -6,9 +6,9 @@ chat-tui 负责“怎么展示、怎么收集输入”，harness 负责“agent 
 
 ## 契约
 
-- 新接入方通过 `createChatPresentationRuntime` 提供 `presentation`，分别发布 `timeline`、`composer`、`activity`、`footer`、`sidecar` 五个 Surface 的稳定快照；一个 Surface 未变化时保持引用不变，也不通知其订阅者。
+- 新接入方通过 `createChatSurfaceStore` 提供 `surfaces`，分别发布 `timeline`、`composer`、`activity`、`footer`、`sidecar` 五个 Surface 的稳定快照；一个 Surface 未变化时保持引用不变，也不通知其订阅者。
 - `commit(patch)` 是原子提交：多路新快照先全部可见，再通知变化的订阅者。它仍是 snapshot 协议，不要求 harness 维护 UI delta。
-- `getView()` + `subscribe()` 保留为兼容入口；`ChatShell` 会把完整 `ChatViewState` 适配成五路快照。新接入方应直接提供 `presentation`，避免一个辅助视图的变化使其他 Surface 重渲染。
+- `getView()` + `subscribe()` 保留为兼容入口；`ChatShell` 通过 `protocol/view.ts` 把完整 `ChatViewState` 适配成五路快照。新接入方应直接提供 `surfaces`，避免一个辅助视图的变化使其他 Surface 重渲染。
 - harness 先归约上游增量事件，再发布新快照。chat-tui 不维护第二套 delta 协议，也不尝试重放 provider 事件。
 - `TranscriptItem` 是展示形状，不是事件：普通消息与 activity block 分开；block 只接收 status、tone、kind、title 和已格式化 content。diff 或 provider ContentBlock 等结构语义由接入方完成投影。
 - `interactions` 是带稳定 ID 的有序人机交互投影：`InteractionDock` 展示首项；approval / question / suggested input 保留各自 typed payload，只共享排序、requester 与响应入口。suggested input 仅在用户显式采用后进入 composer，提交或放弃都通过 `resolveInteraction` 回传，持久状态仍归接入方。
@@ -22,7 +22,7 @@ chat-tui 负责“怎么展示、怎么收集输入”，harness 负责“agent 
 
 五个 Surface 的归属固定为：
 
-| Surface | Presentation channel | 内容 |
+| Surface | State channel | 内容 |
 |---|---|---|
 | `TimelineSurface` | `timeline` | Transcript 与 pinned Plan |
 | `ComposerSurface` | `composer` | queued input、ComposerEditor、补全、Picker 与 InteractionDock |

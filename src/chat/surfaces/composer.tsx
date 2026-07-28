@@ -1,232 +1,68 @@
-// ChatShell：把 ChatProtocol 接到全套组件上的一站式壳。
-// 接入方只需实现 ChatProtocol + 注入命令表/引用源，即得到完整 chat TUI：
-// 多行输入、slash/@ 补全、分层 Ctrl+C、队列召回、Interaction Dock。
+// ComposerSurface：持有 draft、焦点和输入交互，只订阅 composer Surface。
 
-import {
-  useKeyboard,
-  useRenderer,
-  useSelectionHandler,
-  useTerminalDimensions,
-} from "@opentui/react";
+import { useKeyboard } from "@opentui/react";
 import {
   memo,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
   type Dispatch,
   type ReactNode,
   type SetStateAction,
 } from "react";
 
-import type { ChatProtocol } from "../protocol/index.ts";
-import {
-  createChatPresentationRuntime,
-  type ChatPresentation,
-  type SurfaceChannel,
-} from "../protocol/presentation.ts";
-import {
-  defaultTheme,
-  type CommandSpec,
-  type InteractionView,
-  type SidecarView,
-  type Theme,
-  type ToastMessage,
-} from "../types/index.ts";
-import type { ClipPolicy } from "./clip.ts";
-import { parseSlashCommand } from "./commands.ts";
-import { acceptCompletion, buildCandidates, triggerAt, type Candidate } from "./completion.ts";
-import { CTRL_C_CONFIRM_WINDOW_MS, ctrlCAction, escapeAction } from "./keys.ts";
 import {
   ComposerEditor,
   composerHeightFor,
   type ComposerHandle,
-} from "./composer.tsx";
-import { InteractionDock } from "./interaction-dock.tsx";
+} from "../../components/composer.tsx";
+import { parseSlashCommand } from "../../components/commands.ts";
+import {
+  acceptCompletion,
+  buildCandidates,
+  triggerAt,
+  type Candidate,
+} from "../../components/completion.ts";
+import { InteractionDock } from "../../components/interaction-dock.tsx";
 import {
   Picker,
   Suggestions,
   visiblePickerOptions,
-} from "./interaction-widgets.tsx";
-import { PlanPinned } from "./plan-pinned.tsx";
-import { InputArea } from "./queued.tsx";
-import { RunStatus } from "./run-status.tsx";
-import { Sidecar, sidecarLayout, type SidecarLayout } from "./sidecar.tsx";
-import { ToastLine } from "./toast-line.tsx";
-import { useTokenSelectionOnDoubleClick } from "./token-selection.ts";
-import { Transcript } from "./transcript.tsx";
+} from "../../components/interaction-widgets.tsx";
+import { CTRL_C_CONFIRM_WINDOW_MS, ctrlCAction, escapeAction } from "../../components/keys.ts";
+import { InputArea } from "../../components/queued.tsx";
+import type { SidecarLayout } from "../../components/sidecar.tsx";
+import type { ChatProtocol } from "../../protocol/index.ts";
+import type { ChatSurfaces } from "../../protocol/surfaces.ts";
+import { useSurface } from "../../surface.ts";
+import {
+  type CommandSpec,
+  type InteractionView,
+  type Theme,
+  type ToastMessage,
+} from "../../types/index.ts";
+import { ActivitySurface } from "./activity.tsx";
 
 const CTRL_C_EXIT_HINT = "Press Ctrl+C again to exit";
 const CTRL_C_CLEARED_HINT = "Draft cleared; press Ctrl+C again to exit";
 
-export interface ChatShellProps {
+export interface ComposerSurfaceProps {
   protocol: ChatProtocol;
-  /** slash 命令表（补全 + 识别）；语义执行走 protocol.command() */
-  commands: readonly CommandSpec[];
-  /** @ 引用候选源；不传则 @ 不触发补全 */
-  mentions?: (prefix: string) => Candidate[];
-  theme?: Theme;
-  /** transcript 高度预算策略；缺省 defaultClipPolicy（Ctrl+O 展开/收起） */
-  clipPolicy?: ClipPolicy;
-}
-
-export function ChatShell(props: ChatShellProps): ReactNode {
-  const { protocol } = props;
-  const theme = props.theme ?? defaultTheme;
-  const renderer = useRenderer();
-  const terminal = useTerminalDimensions();
-  const [localToast, setLocalToast] = useState<ToastMessage | null>(null);
-  const presentation = useMemo(
-    () => protocol.presentation ?? createChatPresentationRuntime(protocol.getView()),
-    [protocol],
-  );
-
-  useEffect(() => {
-    if (protocol.presentation) return;
-    const runtime = presentation as ReturnType<typeof createChatPresentationRuntime>;
-    const sync = () => runtime.commitView(protocol.getView());
-    const unsubscribe = protocol.subscribe(sync);
-    // 覆盖首次 render 到 effect 建立订阅之间可能发生的变化。
-    sync();
-    return unsubscribe;
-  }, [presentation, protocol]);
-
-  useSelectionHandler((selection) => {
-    const selectedText = selection.getSelectedText();
-    if (selectedText) renderer.copyToClipboardOSC52(selectedText);
-  });
-  // 双击选词是壳内一切可见文本的通性，只在根容器挂这一处：鼠标事件带着命中
-  // target 沿 parent 链冒泡，所有后代文本（含未来新增的组件）天然被覆盖，
-  // 不再 per-widget 挂载——那条路每加一种文本 renderable 就漏一次。
-  const selectTokenOnDoubleClick = useTokenSelectionOnDoubleClick();
-  const sidecar = useSurface(presentation.sidecar);
-  const currentSidecarLayout = sidecarLayout(sidecar, terminal.width);
-
-  return (
-    <box
-      style={{ flexDirection: "row", flexGrow: 1, position: "relative" }}
-      onMouseDown={selectTokenOnDoubleClick}
-    >
-      <box style={{ flexDirection: "column", flexGrow: 1, position: "relative" }}>
-        <TimelineSurface
-          presentation={presentation}
-          theme={theme}
-          clipPolicy={props.clipPolicy}
-        />
-        <ComposerSurface
-          protocol={protocol}
-          presentation={presentation}
-          commands={props.commands}
-          mentions={props.mentions}
-          theme={theme}
-          sidecarLayout={currentSidecarLayout}
-          setLocalToast={setLocalToast}
-        />
-        <FooterSurface
-          presentation={presentation}
-          localToast={localToast}
-          theme={theme}
-        />
-      </box>
-
-      <SidecarSurface
-        view={sidecar}
-        layout={currentSidecarLayout}
-        theme={theme}
-      />
-    </box>
-  );
-}
-
-function useSurface<T>(channel: SurfaceChannel<T>): T {
-  return useSyncExternalStore(
-    useCallback((onChange) => channel.subscribe(onChange), [channel]),
-    channel.getSnapshot,
-    channel.getSnapshot,
-  );
-}
-
-const TimelineSurface = memo(function TimelineSurface(props: {
-  presentation: ChatPresentation;
-  theme: Theme;
-  clipPolicy?: ClipPolicy;
-}): ReactNode {
-  const view = useSurface(props.presentation.timeline);
-  return (
-    <>
-      <Transcript
-        header={view.header}
-        items={view.items}
-        showThoughts={view.showThoughts}
-        theme={props.theme}
-        clipPolicy={props.clipPolicy}
-      />
-      <PlanPinned entries={view.plan ?? []} theme={props.theme} />
-    </>
-  );
-});
-
-const FooterSurface = memo(function FooterSurface(props: {
-  presentation: ChatPresentation;
-  localToast: ToastMessage | null;
-  theme: Theme;
-}): ReactNode {
-  const footer = useSurface(props.presentation.footer);
-  return (
-    <ToastLine
-      toast={props.localToast ?? footer.toast ?? null}
-      fallback={footer.text ?? ""}
-      theme={props.theme}
-    />
-  );
-});
-
-const ActivitySurface = memo(function ActivitySurface(props: {
-  presentation: ChatPresentation;
-  theme: Theme;
-}): ReactNode {
-  const activity = useSurface(props.presentation.activity);
-  return <RunStatus items={activity.items ?? []} theme={props.theme} />;
-});
-
-const SidecarSurface = memo(function SidecarSurface(props: {
-  view: SidecarView | undefined;
-  layout: SidecarLayout;
-  theme: Theme;
-}): ReactNode {
-  if (!props.view || props.layout === "hidden") return null;
-  if (props.layout === "inline") {
-    return <Sidecar view={props.view} theme={props.theme} />;
-  }
-  return (
-    <box
-      style={{
-        position: "absolute",
-        top: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 300,
-      }}
-    >
-      <Sidecar view={props.view} theme={props.theme} overlay />
-    </box>
-  );
-});
-
-const ComposerSurface = memo(function ComposerSurface(props: {
-  protocol: ChatProtocol;
-  presentation: ChatPresentation;
+  surfaces: ChatSurfaces;
   commands: readonly CommandSpec[];
   mentions?: (prefix: string) => Candidate[];
   theme: Theme;
   sidecarLayout: SidecarLayout;
   setLocalToast: Dispatch<SetStateAction<ToastMessage | null>>;
-}): ReactNode {
+}
+
+export const ComposerSurface = memo(function ComposerSurface(
+  props: ComposerSurfaceProps,
+): ReactNode {
   const { protocol } = props;
   const theme = props.theme;
-  const composerView = useSurface(props.presentation.composer);
+  const composerView = useSurface(props.surfaces.composer);
   const setLocalToast = props.setLocalToast;
 
   const [draft, setDraft] = useState("");
@@ -586,7 +422,7 @@ const ComposerSurface = memo(function ComposerSurface(props: {
           }}
         >
           <ActivitySurface
-            presentation={props.presentation}
+            surfaces={props.surfaces}
             theme={theme}
           />
           <ComposerEditor

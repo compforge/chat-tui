@@ -8,19 +8,22 @@ chat-tui 是终端 chat/agent 界面的**组件层**（基于 opentui + react）
 
 ## 代码地图与核心模块
 
-目录布局：`utils/` 只放**真通用原语**；每个概念的**纯逻辑与它的渲染同放在 `components/`**（读一个概念不用跨目录拼）。
+目录按 owner 组织：`protocol/` 是 harness 边界，`chat/` 组合独立 Surface，
+`components/` 内每个展示概念的纯逻辑与渲染就近放置，`utils/` 只放真通用原语。
 
 ```
 chat-tui/
 ├── src/
 │   ├── index.ts             # 唯一对外入口（package exports 直指 TS 源码，无构建步骤）
-│   ├── protocol/            # ChatProtocol + 五个 Surface 的 Presentation Runtime；稳定快照进、intents 出
+│   ├── surface.ts           # 通用 Surface 订阅原语 + React hook
+│   ├── protocol/            # ChatProtocol、五路 Surface store 与完整 View 兼容适配
+│   ├── chat/                # ChatShell + 五个独立订阅的具体 Surface
 │   ├── types/index.ts       # 视图模型（TranscriptItem 等）+ Theme
 │   ├── utils/               # 只放真通用原语：无 chat-tui 业务语义，换个终端 App 也能用
 │   │   ├── text.ts          # 终端文本：显示宽度度量、行清洗、按显示宽度 wrap（clip 与 selection 共用）
 │   │   └── time.ts          # 时长格式化（mm:ss / h:mm:ss）
 │   └── components/          # 每个概念 = 渲染 + 它自己的纯逻辑（就近同放，纯逻辑照样单测）
-│       ├── chat-shell.tsx   # 一站式壳：五个独立 Surface + 键盘/焦点/draft 编排
+│       ├── composer.tsx     # 多行输入框 + ComposerHandle（setText/clear/focus）
 │       ├── keys.ts          # Ctrl+C / Esc 分层语义状态机
 │       ├── transcript.tsx   # 时间线：消息 + activity block；内容按预算折叠，Ctrl+O 展开
 │       ├── block.ts         # block 展示态双轴（outcome × tone）→ icon/color 合成
@@ -28,7 +31,6 @@ chat-tui/
 │       ├── diff.ts          # diff 行数与增删统计
 │       ├── selection.ts     # 选择几何：token 列范围 / 视觉行定位
 │       ├── token-selection.ts # 双击选词的鼠标 hook（只在壳根容器挂一次，靠事件冒泡覆盖全部文本）
-│       ├── composer.tsx     # 多行输入框 + ComposerHandle（setText/clear/focus）
 │       ├── commands.ts      # slash 命令识别（唯一前缀匹配）
 │       ├── completion.ts    # / 与 @ 触发识别、候选构建（命令表/引用源注入）、补全应用
 │       ├── interaction-dock.tsx # InteractionDock：统一选择当前待处理的人机交互
@@ -50,13 +52,13 @@ chat-tui/
 ## 关键约定
 
 - **边界以是否理解 agent 语义为准**：chat-tui 只接收展示快照、产出用户 intent，不拥有 session / turn / provider / 事件流语义；具体命令、引用源和 theme 均由接入方注入。协议边界与快照契约见 `docs/protocol.md`。
-- **展示必须诚实且保持语义正交**：展示模型不冒充上游事件，结果、提示、来源和正文格式各自表达；未知值显式暴露，不静默伪装成已知状态。具体投影与裁剪规则见 `docs/presentation.md`。
-- **主对话按信息时态分层，渲染订阅按 Surface 隔离**：Timeline、Composer、Activity、Footer、Sidecar 各消费稳定 read model；Surface 是独立订阅的 React 子树，不引入基类或注册器。Sidecar、状态或流式输出更新不能让 Composer 丢焦点、重建 buffer 或清空 draft。区块职责与输入体验原则统一见 `docs/presentation.md`。
+- **展示必须诚实且保持语义正交**：展示模型不冒充上游事件，结果、提示、来源和正文格式各自表达；未知值显式暴露，不静默伪装成已知状态。具体投影与裁剪规则见 `docs/surfaces.md`。
+- **主对话按信息时态分层，渲染订阅按 Surface 隔离**：Timeline、Composer、Activity、Footer、Sidecar 各消费稳定 read model；Surface 是独立订阅的 React 子树，不引入基类或注册器。Sidecar、状态或流式输出更新不能让 Composer 丢焦点、重建 buffer 或清空 draft。区块职责与输入体验原则统一见 `docs/surfaces.md`。
 - **实现以纯逻辑和概念内聚为先**：交互/展示规则优先写成可测试的纯函数，组件只做粘合；概念逻辑与渲染同放，`utils/` 只容纳可跨终端应用复用的原语。实现细则见 `docs/implementation.md`。
 
 ## References
 
 - `README.md` — 对外文档：protocol 表、快速上手、能力清单
 - `docs/protocol.md` — chat-tui 与 harness 的协议边界、快照契约和注入点
-- `docs/presentation.md` — 界面区块、时态分层、展示语义与视觉行预算
+- `docs/surfaces.md` — Surface 区块、时态分层、展示语义与视觉行预算
 - `docs/implementation.md` — 纯逻辑组织、通用原语边界和全局交互实现约束

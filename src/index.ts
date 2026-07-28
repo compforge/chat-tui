@@ -4,7 +4,9 @@
 
 export * from "./types/index.ts";
 export * from "./protocol/index.ts";
-export * from "./protocol/presentation.ts";
+export * from "./protocol/surfaces.ts";
+export * from "./protocol/view.ts";
+export { useSurface, type Surface } from "./surface.ts";
 export * from "./utils/text.ts";
 export * from "./utils/time.ts";
 export * from "./components/clip.ts";
@@ -12,7 +14,7 @@ export * from "./components/diff.ts";
 export * from "./components/commands.ts";
 export * from "./components/completion.ts";
 export * from "./components/keys.ts";
-export { ChatShell, type ChatShellProps } from "./components/chat-shell.tsx";
+export { ChatShell, type ChatShellProps } from "./chat/shell.tsx";
 export { Transcript, type TranscriptProps } from "./components/transcript.tsx";
 export {
   Composer,

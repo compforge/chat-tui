@@ -1,12 +1,14 @@
 import { describe, expect, test } from "bun:test";
 
 import {
-  createChatPresentationRuntime,
-  type ChatPresentationState,
+  chatSurfaceStateFromView,
+  commitViewToSurfaces,
+  createChatSurfaceStore,
+  type ChatSurfaceState,
   type SidecarView,
 } from "../src/index.ts";
 
-function initialState(): ChatPresentationState {
+function initialState(): ChatSurfaceState {
   return {
     timeline: {
       items: [{ id: "message-1", type: "message", role: "agent", text: "hello" }],
@@ -18,9 +20,9 @@ function initialState(): ChatPresentationState {
   };
 }
 
-describe("chat presentation runtime", () => {
+describe("chat surface store", () => {
   test("notifies only the channels changed by a commit", () => {
-    const runtime = createChatPresentationRuntime(initialState());
+    const runtime = createChatSurfaceStore(initialState());
     const calls = { timeline: 0, composer: 0, activity: 0, footer: 0, sidecar: 0 };
     const composerBefore = runtime.composer.getSnapshot();
     const timelineBefore = runtime.timeline.getSnapshot();
@@ -51,7 +53,7 @@ describe("chat presentation runtime", () => {
   });
 
   test("publishes a multi-channel commit atomically", () => {
-    const runtime = createChatPresentationRuntime(initialState());
+    const runtime = createChatSurfaceStore(initialState());
     const nextComposer = { busy: true, placeholder: "Steer the running turn" };
     const nextTimeline = {
       items: [{ id: "message-2", type: "message", role: "agent", text: "working" }] as const,
@@ -73,7 +75,7 @@ describe("chat presentation runtime", () => {
   });
 
   test("keeps ActivitySurface and FooterSurface independently subscribable", () => {
-    const runtime = createChatPresentationRuntime(initialState());
+    const runtime = createChatSurfaceStore(initialState());
     const calls = { composer: 0, activity: 0, footer: 0 };
     runtime.composer.subscribe(() => calls.composer++);
     runtime.activity.subscribe(() => calls.activity++);
@@ -87,7 +89,7 @@ describe("chat presentation runtime", () => {
   });
 
   test("keeps ComposerSurface cold during repeated SidecarSurface updates", () => {
-    const runtime = createChatPresentationRuntime(initialState());
+    const runtime = createChatSurfaceStore(initialState());
     let composerNotifications = 0;
     let sidecarNotifications = 0;
     runtime.composer.subscribe(() => composerNotifications++);
@@ -114,16 +116,17 @@ describe("chat presentation runtime", () => {
 
   test("legacy full-view commits preserve unchanged Surface references", () => {
     const transcript = initialState().timeline.items;
-    const runtime = createChatPresentationRuntime({
-      transcript,
-      footer: "ready",
-      sidecar: undefined,
-    });
+    const runtime = createChatSurfaceStore(
+      chatSurfaceStateFromView({
+        transcript,
+        footer: "ready",
+      }),
+    );
     const composerBefore = runtime.composer.getSnapshot();
     let composerNotifications = 0;
     runtime.composer.subscribe(() => composerNotifications++);
 
-    runtime.commitView({
+    commitViewToSurfaces(runtime, {
       transcript,
       footer: "updated",
       sidecar: {
