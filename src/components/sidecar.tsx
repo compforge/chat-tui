@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
 import type {
   SidecarItemTone,
@@ -75,37 +75,36 @@ export function Sidecar(props: SidecarProps): ReactNode {
         </text>
         {props.overlay ? <text fg={props.theme.dim}>Esc close</text> : null}
       </box>
-      <scrollbox style={{ flexGrow: 1, marginTop: 1 }} focused={false}>
-        <box style={{ flexDirection: "column", gap: 1, paddingRight: 1 }}>
-          {sections.map((section) => (
-            <box key={section.id} style={{ flexDirection: "column", flexShrink: 0 }}>
-              {section.title ? (
-                <text fg={props.theme.agent}>
-                  <b>{section.title}</b>
-                </text>
-              ) : null}
-              {section.items.map((item) => (
-                <box key={item.id} style={{ flexDirection: "column", flexShrink: 0 }}>
-                  <box style={{ flexDirection: "row", justifyContent: "space-between", gap: 1 }}>
-                    <text fg={props.theme.user} wrapMode="word">
-                      {item.title}
-                    </text>
-                    {item.status ? (
-                      <text fg={toneColor(item.tone, props.theme)} style={{ flexShrink: 0 }}>
-                        {item.status}
-                      </text>
-                    ) : null}
-                  </box>
-                  {item.detail ? (
-                    <text fg={props.theme.dim} wrapMode="word">
-                      {item.detail}
+      <scrollbox style={{ flexGrow: 1, marginTop: 1, paddingRight: 1 }} focused={false}>
+        {sections.map((section, sectionIndex) => (
+          <Fragment key={section.id}>
+            {sectionIndex > 0 ? <box style={{ height: 1, flexShrink: 0 }} /> : null}
+            {section.title ? (
+              <text fg={props.theme.agent} style={{ flexShrink: 0 }}>
+                <b>{section.title}</b>
+              </text>
+            ) : null}
+            {section.items.map((item) => (
+              <box key={item.id} style={{ flexDirection: "column", flexShrink: 0 }}>
+                <box style={{ flexDirection: "row", justifyContent: "space-between", gap: 1 }}>
+                  <text fg={props.theme.user} wrapMode="word">
+                    {item.title}
+                  </text>
+                  {item.status ? (
+                    <text fg={toneColor(item.tone, props.theme)} style={{ flexShrink: 0 }}>
+                      {item.status}
                     </text>
                   ) : null}
                 </box>
-              ))}
-            </box>
-          ))}
-        </box>
+                {item.detail ? (
+                  <text fg={props.theme.dim} wrapMode="word">
+                    {item.detail}
+                  </text>
+                ) : null}
+              </box>
+            ))}
+          </Fragment>
+        ))}
       </scrollbox>
     </box>
   );
