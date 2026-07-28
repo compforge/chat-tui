@@ -1,60 +1,127 @@
-// chat-tui：终端 chat/agent 界面的组件层。视图模型进、用户意图（intents）出——
-// UI 只上报"用户想干什么"（submit/cancel/command…），不执行也不解释，
-// 不含任何 session / provider / 事件流语义——那些归消费方的 harness。
+// Public API. Internal paths are intentionally not compatibility boundaries.
 
-export * from "./types/index.ts";
-export * from "./protocol/index.ts";
-export * from "./protocol/state.ts";
+export * from "./state/chat.ts";
+export * from "./state/timeline.ts";
+export * from "./state/composer.ts";
+export * from "./state/activity.ts";
+export * from "./state/footer.ts";
+export * from "./state/sidecar.ts";
+export * from "./protocol/chat-protocol.ts";
+export * from "./protocol/command.ts";
+export * from "./protocol/interaction.ts";
+export * from "./store/chat-store.ts";
+export { type Store } from "./store/contract.ts";
+export { useStoreSelector, useStoreState } from "./store/react.ts";
+export * from "./theme.ts";
+export * from "./terminal/text.ts";
+export * from "./terminal/time.ts";
+
+export { ChatShell, type ChatShellProps } from "./shell/chat-shell.tsx";
 export {
-  useStoreSelector,
-  useStoreState,
-  type Store,
-} from "./state.ts";
-export * from "./utils/text.ts";
-export * from "./utils/time.ts";
-export * from "./components/clip.ts";
-export * from "./components/diff.ts";
-export * from "./components/commands.ts";
-export * from "./components/completion.ts";
-export * from "./components/keys.ts";
-export { ChatShell, type ChatShellProps } from "./chat/shell.tsx";
-export { Transcript, type TranscriptProps } from "./components/transcript.tsx";
+  tokenColumnRange,
+  visualLineAt,
+  type ColumnRange,
+} from "./shell/selection.ts";
+export { useTokenSelectionOnDoubleClick } from "./shell/token-selection.ts";
+
 export {
-  Composer,
+  TimelineSurface,
+  type TimelineSurfaceProps,
+} from "./surfaces/timeline/surface.tsx";
+export {
+  Transcript,
+  type TranscriptProps,
+} from "./surfaces/timeline/transcript.tsx";
+export * from "./surfaces/timeline/clip.ts";
+export * from "./surfaces/timeline/diff.ts";
+export { blockStatus, type BlockStatusDisplay } from "./surfaces/timeline/block.ts";
+export {
+  PlanPinned,
+  planWindow,
+  type PlanPinnedProps,
+  type PlanWindow,
+} from "./surfaces/timeline/plan.tsx";
+
+export {
+  ComposerSurface,
+  type ComposerSurfaceProps,
+} from "./surfaces/composer/surface.tsx";
+export {
   ComposerEditor,
   COMPOSER_KEY_BINDINGS,
   composerHeightFor,
   type ComposerEditorProps,
   type ComposerHandle,
-  type ComposerProps,
-} from "./components/composer.tsx";
+} from "./surfaces/composer/editor.tsx";
+export * from "./surfaces/composer/commands.ts";
+export * from "./surfaces/composer/completion.ts";
+export * from "./surfaces/composer/keys.ts";
+export {
+  QueuedList,
+  InputArea,
+  queuedPreview,
+  type QueuedListProps,
+  type InputAreaProps,
+} from "./surfaces/composer/queued.tsx";
+export {
+  Picker,
+  visiblePickerOptions,
+  type PickerProps,
+} from "./surfaces/composer/interactions/picker.tsx";
+export {
+  Suggestions,
+  type SuggestionsProps,
+} from "./surfaces/composer/interactions/suggestions.tsx";
 export {
   ApprovalCard,
-  Picker,
-  QuestionCard,
-  Suggestions,
-  visiblePickerOptions,
   type ApprovalCardProps,
-  type PickerProps,
+} from "./surfaces/composer/interactions/approval-card.tsx";
+export {
+  QuestionCard,
   type QuestionCardProps,
-  type SuggestionsProps,
-} from "./components/interaction-widgets.tsx";
+} from "./surfaces/composer/interactions/question-card.tsx";
 export {
   InteractionDock,
   type InteractionDockProps,
-} from "./components/interaction-dock.tsx";
-export { PlanPinned, planWindow, type PlanPinnedProps, type PlanWindow } from "./components/plan-pinned.tsx";
-export { QueuedList, InputArea, queuedPreview, type QueuedListProps, type InputAreaProps } from "./components/queued.tsx";
-export { RunStatus, runStatusParts, runStatusTail, type RunStatusProps } from "./components/run-status.tsx";
+} from "./surfaces/composer/interactions/dock.tsx";
+export {
+  approvalCardLayout,
+  type ApprovalCardLayout,
+} from "./surfaces/composer/interactions/approval.ts";
+export {
+  questionCardLayout,
+  type QuestionCardLayout,
+} from "./surfaces/composer/interactions/question.ts";
+
+export {
+  ActivitySurface,
+  type ActivitySurfaceProps,
+} from "./surfaces/activity/surface.tsx";
+export {
+  RunStatus,
+  runStatusParts,
+  runStatusTail,
+  type RunStatusProps,
+} from "./surfaces/activity/run-status.tsx";
+
+export {
+  FooterSurface,
+  type FooterSurfaceProps,
+} from "./surfaces/footer/surface.tsx";
+export { ToastLine, type ToastLineProps } from "./surfaces/footer/toast-line.tsx";
+
+export {
+  SidecarSurface,
+  type SidecarSurfaceProps,
+} from "./surfaces/sidecar/surface.tsx";
 export {
   Sidecar,
+  type SidecarProps,
+} from "./surfaces/sidecar/sidecar.tsx";
+export {
   SIDECAR_BREAKPOINT,
   SIDECAR_WIDTH,
   sidecarLayout,
   visibleSidecarSections,
   type SidecarLayout,
-  type SidecarProps,
-} from "./components/sidecar.tsx";
-export { ToastLine, type ToastLineProps } from "./components/toast-line.tsx";
-// 自定义壳（不用 ChatShell 自行组装组件）在根容器上挂一次，即可让全部可见文本获得双击选词
-export { useTokenSelectionOnDoubleClick } from "./components/token-selection.ts";
+} from "./surfaces/sidecar/layout.ts";

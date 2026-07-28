@@ -6,8 +6,14 @@
 
 ## 组织方式
 
-- 纯逻辑与渲染同放在 `components/`：可使用同名文件（如 `block.ts`、`clip.ts`、`keys.ts`、`approval.ts`），也可直接放在组件文件内（如 `queuedPreview`、`planWindow`、`composerHeightFor`）。
-- `utils/` 只存真正通用的原语。判据是：换一个终端应用后是否仍能原样复用；带 chat-tui 概念的逻辑应留在对应组件旁。
+- `state/` 只定义公开数据形状，不能依赖 React、OpenTUI 或 Store；`store/` 负责发布订阅，
+  React hook 只存在于 `store/react.ts`。
+- 每个界面领域在 `surfaces/<surface>/` 内同时拥有 Surface、子组件和纯逻辑，例如 Timeline
+  拥有 transcript / clip / diff，Composer 拥有 editor / completion / interactions。
+- `terminal/` 只存多个 Surface 真正共用的终端原语。带 Timeline、Composer 或 Sidecar
+  语义的逻辑不得为了复用外观进入这里。
+- `ChatShell` 只组合 Surface 和承接全局文本选择，不订阅具体 State。
+- 根 `index.ts` 是唯一公开入口；内部路径可直接调整，不提供旧目录 alias 或兼容 re-export。
 - 新交互先判断能否拆成“纯函数 + 薄组件”，以便对边界和状态转换做稳定单测。
 
 ## 全局交互

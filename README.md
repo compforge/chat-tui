@@ -67,7 +67,7 @@ bun examples/echo.tsx
 - **Keys** — Ctrl+C clears the full draft and exits on a second press, Ctrl+D exits on EOF, Esc interrupts, Ctrl+O expands/collapses clipped blocks
 - **Theme** — one theme object (tokyo-night defaults), overridable per consumer
 
-All interaction logic that can be pure is pure (`triggerAt`, `applyCompletion`, `parseSlashCommand`, `ctrlCAction`) and unit-tested; components stay thin. Use `ChatShell` for the whole surface, or compose `Transcript` / `Composer` / `Suggestions` / `Picker` / `InteractionDock` / `ApprovalCard` / `QuestionCard` / `QueuedList` / `ToastLine` yourself.
+All interaction logic that can be pure is pure (`triggerAt`, `applyCompletion`, `parseSlashCommand`, `ctrlCAction`) and unit-tested; components stay thin. Use `ChatShell` for the complete UI, or compose the exported Surfaces and focused building blocks such as `Transcript`, `ComposerEditor`, `InteractionDock`, `Picker`, and `Sidecar`.
 
 ## Capability matrix
 
@@ -95,7 +95,7 @@ chat-tui describes UI capabilities, not provider capabilities. A check here mean
 
 | Output | View shape | Support | Boundary |
 |---|---|---|---|
-| User/agent text | `TranscriptItem.message` | Yes | Explicit plain/Markdown format; plain is the backward-compatible default, and streaming Markdown uses `streaming: true` until complete |
+| User/agent text | `TranscriptItem.message` | Yes | Explicit plain/Markdown format; plain is the safe default, and streaming Markdown uses `streaming: true` until complete |
 | Streaming updates | Stable State snapshots | Yes | The harness reduces provider deltas before publishing; timeline updates do not notify composer or sidecar subscribers |
 | Thought/tool/plan/custom activity | `TranscriptItem.block` | Yes | `kind` is open; optional `author` labels attribution in multi-agent timelines; chat-tui does not interpret provider events |
 | Block content | `text` / `lines` / `plan` / `code` / `command` / `output` / `diff` | Yes | Code uses Tree-sitter syntax highlighting; diff uses a Codex-style, line-numbered unified view with file headers and colored add/remove statistics |
@@ -110,7 +110,7 @@ chat-tui describes UI capabilities, not provider capabilities. A check here mean
 
 | Direction | Contract | Meaning |
 |---|---|---|
-| harness → TUI | `stateStore` | preferred: stable `timeline` / `composer` / `activity` / `footer` / `sidecar` State channels created with `createChatStore()` |
+| harness → TUI | `stateStore` | sole output contract: stable `timeline` / `composer` / `activity` / `footer` / `sidecar` State channels created with `createChatStore()` |
 | harness → TUI | `stateStore.commit(patch)` | atomically replaces one or more State snapshots and notifies only changed subscribers |
 | TUI → harness | `submit(text)` | user message; recognized slash commands go to `command()` instead |
 | TUI → harness | `command(name, argument)` | registered slash command invocation |

@@ -24,7 +24,7 @@ Surface 是 chat-tui 的独立渲染单位：每个 Surface 是通过 Store 直�
 
 ## Sidecar
 
-Sidecar 是通用、可选的辅助展示面，和主对话并列而不是放在 Footer 下方。接入方把 Board、上下文、诊断等领域状态先投影成 `SidecarView`；chat-tui 只渲染 section/item/status/detail，不理解条目背后的业务语义。
+Sidecar 是通用、可选的辅助展示面，和主对话并列而不是放在 Footer 下方。接入方把 Board、上下文、诊断等领域状态整理成 `SidecarState`；chat-tui 只渲染 section/item/status/detail，不理解条目背后的业务语义。
 
 - 所有 section 都没有条目时完全隐藏，不保留空框或宽度。
 - `auto` 模式在终端宽度大于 120 列时以内联右栏展示；窄屏默认隐藏，避免挤压 transcript 和 composer。
@@ -35,10 +35,10 @@ Sidecar 是通用、可选的辅助展示面，和主对话并列而不是放在
 
 Transcript 是可滚动的过去时区域，接收 message 与 activity block 两类展示形状。接入方负责把事件投影成展示内容，chat-tui 不解释 provider 语义。
 
-- activity block 的 `status` 表示 outcome（pending / in_progress / completed / failed / declined），决定 icon；`tone` 表示注意或留痕，覆盖 color。tone 不改变结果，例如 completed + warning 仍显示完成图标。两轴在 `components/block.ts` 通过查表与兜底合成。
+- activity block 的 `status` 表示 outcome（pending / in_progress / completed / failed / declined），决定 icon；`tone` 表示注意或留痕，覆盖 color。tone 不改变结果，例如 completed + warning 仍显示完成图标。两轴在 Timeline Surface 的 `block.ts` 通过查表与兜底合成。
 - `status` 是容忍 wire 漂移的开放 string。未知值不得降级成某个已知状态，而应使用独立图标、警示色，并在 note 中保留原始值。
 - 消息来源与正文格式分离：role / author 只回答谁在说话，`format` 显式选择 plain / markdown；未知来源缺省纯文本，流式 Markdown 的完成边界由接入方通过 `streaming` 提供。
-- transcript 高度预算按宽度 wrap 后的视觉行计算，由 `components/clip.ts` 保证“所见行数等于预算行数”。diff 作为文件改动结果默认完整展示，其余被折叠的内容可用 Ctrl+O 展开；折叠是本地展示状态（不进协议），harness 始终传完整数据，复制选择得到当前所见内容。
+- transcript 高度预算按宽度 wrap 后的视觉行计算，由 Timeline Surface 的 `clip.ts` 保证“所见行数等于预算行数”。diff 作为文件改动结果默认完整展示，其余被折叠的内容可用 Ctrl+O 展开；折叠是本地展示状态（不进协议），harness 始终传完整数据，复制选择得到当前所见内容。
 
 ## Plan
 
