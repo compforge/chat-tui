@@ -1,8 +1,7 @@
 // chat-tui 的接入协议：接入方实现 ChatProtocol，ChatShell 负责渲染与交互。
 //
-//   输出（接入方 → TUI）：surfaces 提供五个独立订阅的稳定快照。
-//     getView() + subscribe() 是兼容入口；新接入方应提供 surfaces，避免无关
-//     read model 变化让 timeline / composer / activity / footer / sidecar 互相触发重渲染。
+//   输出（接入方 → TUI）：stateStore 提供五个可独立订阅的稳定 State。
+//     Surface 通过 Store 直接订阅所需 State，避免无关区域互相触发重渲染。
 //   输入（TUI → 接入方）：submit / command / cancel / exit / searchPicker / resolvePicker /
 //     resolveInteraction / recallQueued。这些是用户意图（intent，MVI 语义）：TUI 已把
 //     原始按键翻译成语义级请求，只表达"用户想干什么"；如何执行（发本地进程还是
@@ -11,26 +10,12 @@
 import type {
   InteractionResponse,
 } from "../types/index.ts";
-import type { ChatSurfaces } from "./surfaces.ts";
-import type { ChatViewState } from "./view.ts";
-
-export type { ChatViewState } from "./view.ts";
+import type { ChatStore } from "./state.ts";
 
 export interface ChatProtocol {
   // ===== 输出：接入方 → TUI =====
-  /**
-   * 五个 Surface 各自订阅的 read model。存在时 ChatShell 不再订阅完整 getView()；
-   * 接入方通常用 createChatSurfaceStore 创建并提交。
-   */
-  surfaces?: ChatSurfaces;
-  /**
-   * 返回当前视图快照。ChatShell 用 useSyncExternalStore 消费：
-   * 未变化时必须返回同一对象引用（变化时换新对象），否则会触发无限重渲染。
-   * 推荐实现：内部持有一个 view 对象，每次变更整体替换后再通知 subscribe 监听者。
-   */
-  getView(): ChatViewState;
-  /** 视图变化时通知；返回取消订阅函数 */
-  subscribe(onChange: () => void): () => void;
+  /** State 的发布与订阅入口；接入方通常用 createChatStore 创建并提交。 */
+  stateStore: ChatStore;
 
   // ===== 输入：TUI → 接入方 =====
   /** 普通消息（slash 命令已被 TUI 识别并走 command()，不会进这里） */

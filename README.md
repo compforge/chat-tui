@@ -19,12 +19,17 @@ Implement `ChatProtocol` and hand it to `ChatShell`:
 ```tsx
 import { createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
-import { ChatShell, type ChatProtocol, type ChatViewState } from "chat-tui";
+import { ChatShell, createChatStore, type ChatProtocol } from "chat-tui";
 
 class MyHarness implements ChatProtocol {
-  // outputs: harness → TUI (snapshot + change notification)
-  getView(): ChatViewState { /* transcript, busy, queued, approval, … */ }
-  subscribe(onChange: () => void): () => void { /* notify on change */ }
+  // outputs: harness → TUI
+  readonly stateStore = createChatStore({
+    timeline: { items: [] },
+    composer: {},
+    activity: {},
+    footer: {},
+    sidecar: undefined,
+  });
 
   // inputs: TUI → harness
   submit(text: string) { /* send to local or remote agent */ }
@@ -91,7 +96,7 @@ chat-tui describes UI capabilities, not provider capabilities. A check here mean
 | Output | View shape | Support | Boundary |
 |---|---|---|---|
 | User/agent text | `TranscriptItem.message` | Yes | Explicit plain/Markdown format; plain is the backward-compatible default, and streaming Markdown uses `streaming: true` until complete |
-| Streaming updates | Stable Surface snapshots | Yes | The harness reduces provider deltas before publishing; timeline updates do not notify composer or sidecar subscribers |
+| Streaming updates | Stable State snapshots | Yes | The harness reduces provider deltas before publishing; timeline updates do not notify composer or sidecar subscribers |
 | Thought/tool/plan/custom activity | `TranscriptItem.block` | Yes | `kind` is open; optional `author` labels attribution in multi-agent timelines; chat-tui does not interpret provider events |
 | Block content | `text` / `lines` / `plan` / `code` / `command` / `output` / `diff` | Yes | Code uses Tree-sitter syntax highlighting; diff uses a Codex-style, line-numbered unified view with file headers and colored add/remove statistics |
 | Long content | Text/output/code/command are clipped to a visual-row budget; diffs stay expanded | Yes | Pass full content; clipping is display-only, Ctrl+O expands clipped blocks, and the policy (`clipPolicy`) is injectable |
@@ -103,11 +108,10 @@ chat-tui describes UI capabilities, not provider capabilities. A check here mean
 
 ## Protocol at a glance
 
-| Direction | Surface | Meaning |
+| Direction | Contract | Meaning |
 |---|---|---|
-| harness → TUI | `surfaces` | preferred: stable `timeline` / `composer` / `activity` / `footer` / `sidecar` channels created with `createChatSurfaceStore()` |
-| harness → TUI | `surfaceStore.commit(patch)` | atomically replaces one or more Surface snapshots and notifies only changed Surface subscribers |
-| harness → TUI | `getView()` / `subscribe(cb)` | compatibility path for a full `ChatViewState`; `ChatShell` adapts it into the channel model |
+| harness → TUI | `stateStore` | preferred: stable `timeline` / `composer` / `activity` / `footer` / `sidecar` State channels created with `createChatStore()` |
+| harness → TUI | `stateStore.commit(patch)` | atomically replaces one or more State snapshots and notifies only changed subscribers |
 | TUI → harness | `submit(text)` | user message; recognized slash commands go to `command()` instead |
 | TUI → harness | `command(name, argument)` | registered slash command invocation |
 | TUI → harness | `cancel()` / `exit()` | interrupt turn / graceful shutdown |
@@ -116,6 +120,8 @@ chat-tui describes UI capabilities, not provider capabilities. A check here mean
 | TUI → harness | `dismissSidecar()` | optional intent emitted when Esc closes a narrow-screen sidecar overlay |
 | TUI → harness | `recallQueued()` | ↑ recall of the latest queued input |
 | TUI → harness | `historyPrev(current)` / `historyNext(current)` | ↑/↓ input-history recall at a buffer boundary; the harness owns the history and decides whether to navigate |
+
+State is the data organization unit, Store handles publishing and subscription, and Surface is the independent render unit. They correspond naturally but are not required to be one-to-one: a Surface may select from multiple State channels, and multiple Surfaces may consume the same State.
 
 Transcript items are display-shaped (`message` / `block`): your harness reduces its own event stream (Claude SDK, codex app-server, SSE from a remote server, …) into them. A block carries a status, open-ended kind, title, optional author (attribution in multi-agent timelines, colored via the same `agentColorFor` used for message authors), and optional display-ready content; provider-specific event and content-block semantics stay in the harness.
 

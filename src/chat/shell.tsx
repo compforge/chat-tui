@@ -3,29 +3,16 @@
 import {
   useRenderer,
   useSelectionHandler,
-  useTerminalDimensions,
 } from "@opentui/react";
 import {
-  useEffect,
-  useMemo,
   useState,
   type ReactNode,
 } from "react";
 
 import type { ClipPolicy } from "../components/clip.ts";
 import type { Candidate } from "../components/completion.ts";
-import { sidecarLayout } from "../components/sidecar.tsx";
 import { useTokenSelectionOnDoubleClick } from "../components/token-selection.ts";
 import type { ChatProtocol } from "../protocol/index.ts";
-import {
-  createChatSurfaceStore,
-  type ChatSurfaceStore,
-} from "../protocol/surfaces.ts";
-import {
-  chatSurfaceStateFromView,
-  commitViewToSurfaces,
-} from "../protocol/view.ts";
-import { useSurface } from "../surface.ts";
 import {
   defaultTheme,
   type CommandSpec,
@@ -52,24 +39,8 @@ export function ChatShell(props: ChatShellProps): ReactNode {
   const { protocol } = props;
   const theme = props.theme ?? defaultTheme;
   const renderer = useRenderer();
-  const terminal = useTerminalDimensions();
   const [localToast, setLocalToast] = useState<ToastMessage | null>(null);
-  const surfaces = useMemo(
-    () =>
-      protocol.surfaces ??
-      createChatSurfaceStore(chatSurfaceStateFromView(protocol.getView())),
-    [protocol],
-  );
-
-  useEffect(() => {
-    if (protocol.surfaces) return;
-    const store = surfaces as ChatSurfaceStore;
-    const sync = () => commitViewToSurfaces(store, protocol.getView());
-    const unsubscribe = protocol.subscribe(sync);
-    // 覆盖首次 render 到 effect 建立订阅之间可能发生的变化。
-    sync();
-    return unsubscribe;
-  }, [protocol, surfaces]);
+  const store = protocol.stateStore;
 
   useSelectionHandler((selection) => {
     const selectedText = selection.getSelectedText();
@@ -78,8 +49,6 @@ export function ChatShell(props: ChatShellProps): ReactNode {
   // 双击选词是壳内一切可见文本的通性，只在根容器挂这一处：鼠标事件带着命中
   // target 沿 parent 链冒泡，所有后代文本（含未来新增的组件）天然被覆盖。
   const selectTokenOnDoubleClick = useTokenSelectionOnDoubleClick();
-  const sidecar = useSurface(surfaces.sidecar);
-  const currentSidecarLayout = sidecarLayout(sidecar, terminal.width);
 
   return (
     <box
@@ -88,29 +57,27 @@ export function ChatShell(props: ChatShellProps): ReactNode {
     >
       <box style={{ flexDirection: "column", flexGrow: 1, position: "relative" }}>
         <TimelineSurface
-          surfaces={surfaces}
+          store={store}
           theme={theme}
           clipPolicy={props.clipPolicy}
         />
         <ComposerSurface
           protocol={protocol}
-          surfaces={surfaces}
+          store={store}
           commands={props.commands}
           mentions={props.mentions}
           theme={theme}
-          sidecarLayout={currentSidecarLayout}
           setLocalToast={setLocalToast}
         />
         <FooterSurface
-          surfaces={surfaces}
+          store={store}
           localToast={localToast}
           theme={theme}
         />
       </box>
 
       <SidecarSurface
-        view={sidecar}
-        layout={currentSidecarLayout}
+        store={store}
         theme={theme}
       />
     </box>

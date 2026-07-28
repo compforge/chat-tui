@@ -3,12 +3,12 @@ import { memo, type ReactNode } from "react";
 import type { ClipPolicy } from "../../components/clip.ts";
 import { PlanPinned } from "../../components/plan-pinned.tsx";
 import { Transcript } from "../../components/transcript.tsx";
-import type { ChatSurfaces } from "../../protocol/surfaces.ts";
-import { useSurface } from "../../surface.ts";
+import type { ChatStore } from "../../protocol/state.ts";
+import { useStoreState } from "../../state.ts";
 import type { Theme } from "../../types/index.ts";
 
 export interface TimelineSurfaceProps {
-  surfaces: ChatSurfaces;
+  store: ChatStore;
   theme: Theme;
   clipPolicy?: ClipPolicy;
 }
@@ -16,7 +16,7 @@ export interface TimelineSurfaceProps {
 export const TimelineSurface = memo(function TimelineSurface(
   props: TimelineSurfaceProps,
 ): ReactNode {
-  const timeline = useSurface(props.surfaces.timeline);
+  const timeline = useStoreState(props.store, "timeline");
   return (
     <>
       <Transcript

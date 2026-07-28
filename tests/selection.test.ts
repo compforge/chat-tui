@@ -6,7 +6,11 @@ import { createElement } from "react";
 
 import { ChatShell } from "../src/chat/shell.tsx";
 import { Transcript, type TranscriptProps } from "../src/components/transcript.tsx";
-import type { ChatProtocol, ChatViewState } from "../src/protocol/index.ts";
+import type { ChatProtocol } from "../src/protocol/index.ts";
+import {
+  createChatStore,
+  type ChatState,
+} from "../src/protocol/state.ts";
 import { tokenColumnRange, visualLineAt } from "../src/components/selection.ts";
 import { useTokenSelectionOnDoubleClick } from "../src/components/token-selection.ts";
 
@@ -17,6 +21,26 @@ afterEach(() => {
   mounted?.setup.renderer.destroy();
   mounted = null;
 });
+
+function testProtocol(initial: Partial<ChatState> = {}): ChatProtocol {
+  return {
+    stateStore: createChatStore({
+      timeline: { items: [] },
+      composer: {},
+      activity: {},
+      footer: {},
+      sidecar: undefined,
+      ...initial,
+    }),
+    submit: () => {},
+    command: () => {},
+    cancel: () => {},
+    exit: () => {},
+    resolvePicker: () => {},
+    searchPicker: () => {},
+    resolveInteraction: () => {},
+  };
+}
 
 describe("double-click selection", () => {
   test("keeps session ids, paths, and URLs as one token", () => {
@@ -69,8 +93,9 @@ describe("double-click selection", () => {
     const setup = await createTestRenderer({ width: 60, height: 8, screenMode: "main-screen" });
     const root = createRoot(setup.renderer);
     mounted = { root, setup };
-    const view: ChatViewState = {
-      transcript: [
+    const protocol = testProtocol({
+      timeline: {
+        items: [
         {
           type: "message",
           id: "answer",
@@ -79,19 +104,9 @@ describe("double-click selection", () => {
           text: "Check `meta.json` before persisting.",
           format: "markdown",
         },
-      ],
-    };
-    const protocol: ChatProtocol = {
-      getView: () => view,
-      subscribe: () => () => {},
-      submit: () => {},
-      command: () => {},
-      cancel: () => {},
-      exit: () => {},
-      resolvePicker: () => {},
-      searchPicker: () => {},
-      resolveInteraction: () => {},
-    };
+        ],
+      },
+    });
     let copied = "";
     setup.renderer.copyToClipboardOSC52 = (text) => {
       copied = text;
@@ -119,22 +134,12 @@ describe("double-click selection", () => {
     const setup = await createTestRenderer({ width: 80, height: 8, screenMode: "main-screen" });
     const root = createRoot(setup.renderer);
     mounted = { root, setup };
-    const view: ChatViewState = {
-      transcript: [],
-      toast: { text: "claude turn queued", tone: "info" },
-      footer: "session: bs_01ABC-xyz  turns:2",
-    };
-    const protocol: ChatProtocol = {
-      getView: () => view,
-      subscribe: () => () => {},
-      submit: () => {},
-      command: () => {},
-      cancel: () => {},
-      exit: () => {},
-      resolvePicker: () => {},
-      searchPicker: () => {},
-      resolveInteraction: () => {},
-    };
+    const protocol = testProtocol({
+      footer: {
+        toast: { text: "claude turn queued", tone: "info" },
+        text: "session: bs_01ABC-xyz  turns:2",
+      },
+    });
     let copied = "";
     setup.renderer.copyToClipboardOSC52 = (text) => {
       copied = text;
@@ -162,18 +167,7 @@ describe("double-click selection", () => {
     const setup = await createTestRenderer({ width: 80, height: 8, screenMode: "main-screen" });
     const root = createRoot(setup.renderer);
     mounted = { root, setup };
-    const view: ChatViewState = { transcript: [] };
-    const protocol: ChatProtocol = {
-      getView: () => view,
-      subscribe: () => () => {},
-      submit: () => {},
-      command: () => {},
-      cancel: () => {},
-      exit: () => {},
-      resolvePicker: () => {},
-      searchPicker: () => {},
-      resolveInteraction: () => {},
-    };
+    const protocol = testProtocol();
     let copied = "";
     setup.renderer.copyToClipboardOSC52 = (text) => {
       copied = text;

@@ -1,6 +1,6 @@
-// ComposerSurface：持有 draft、焦点和输入交互，只订阅 composer Surface。
+// ComposerSurface：持有 draft、焦点和输入交互；订阅 composer State 与 sidecar 布局。
 
-import { useKeyboard } from "@opentui/react";
+import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import {
   memo,
   useCallback,
@@ -32,13 +32,14 @@ import {
 } from "../../components/interaction-widgets.tsx";
 import { CTRL_C_CONFIRM_WINDOW_MS, ctrlCAction, escapeAction } from "../../components/keys.ts";
 import { InputArea } from "../../components/queued.tsx";
-import type { SidecarLayout } from "../../components/sidecar.tsx";
+import { sidecarLayout } from "../../components/sidecar.tsx";
 import type { ChatProtocol } from "../../protocol/index.ts";
-import type { ChatSurfaces } from "../../protocol/surfaces.ts";
-import { useSurface } from "../../surface.ts";
+import type { ChatStore } from "../../protocol/state.ts";
+import { useStoreSelector, useStoreState } from "../../state.ts";
 import {
   type CommandSpec,
   type InteractionView,
+  type SidecarView,
   type Theme,
   type ToastMessage,
 } from "../../types/index.ts";
@@ -49,11 +50,10 @@ const CTRL_C_CLEARED_HINT = "Draft cleared; press Ctrl+C again to exit";
 
 export interface ComposerSurfaceProps {
   protocol: ChatProtocol;
-  surfaces: ChatSurfaces;
+  store: ChatStore;
   commands: readonly CommandSpec[];
   mentions?: (prefix: string) => Candidate[];
   theme: Theme;
-  sidecarLayout: SidecarLayout;
   setLocalToast: Dispatch<SetStateAction<ToastMessage | null>>;
 }
 
@@ -62,7 +62,18 @@ export const ComposerSurface = memo(function ComposerSurface(
 ): ReactNode {
   const { protocol } = props;
   const theme = props.theme;
-  const composerView = useSurface(props.surfaces.composer);
+  const terminal = useTerminalDimensions();
+  const composerView = useStoreState(props.store, "composer");
+  const selectSidecarLayout = useCallback(
+    (sidecar: SidecarView | undefined) =>
+      sidecarLayout(sidecar, terminal.width),
+    [terminal.width],
+  );
+  const currentSidecarLayout = useStoreSelector(
+    props.store,
+    "sidecar",
+    selectSidecarLayout,
+  );
   const setLocalToast = props.setLocalToast;
 
   const [draft, setDraft] = useState("");
@@ -283,7 +294,7 @@ export const ComposerSurface = memo(function ComposerSurface(
       return;
     }
     if (key.name === "escape") {
-      if (props.sidecarLayout === "overlay" && protocol.dismissSidecar) {
+      if (currentSidecarLayout === "overlay" && protocol.dismissSidecar) {
         key.preventDefault();
         protocol.dismissSidecar();
         return;
@@ -422,7 +433,7 @@ export const ComposerSurface = memo(function ComposerSurface(
           }}
         >
           <ActivitySurface
-            surfaces={props.surfaces}
+            store={props.store}
             theme={theme}
           />
           <ComposerEditor
