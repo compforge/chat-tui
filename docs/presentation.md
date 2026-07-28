@@ -4,18 +4,21 @@
 
 主对话自上而下按信息的时态与寿命分层：越接近现在的信息越靠下、越固定，不随历史滚动。可选 Sidecar 与主对话并列，承载跨时间线的辅助读模型。展示层可以压缩信息，但不能改写事实；不同维度保持正交，未知输入显式暴露，裁剪只影响当前视图而不截断接入方传入的数据。
 
-带方括号的区块是条件渲染，无内容时不占空间：
+Surface 是 chat-tui 的独立渲染单位：每个 Surface 是独立订阅 Presentation channel 的 React 子树，按语义命名和组合，不需要共同基类或注册器。带方括号的区块是条件渲染，无内容时不占空间：
 
 ```text
 ┌ Main chat ─────────────────────────┬ [Sidecar] ─────────┐
-│ Transcript        可滚动历史（过去时）│ 辅助读模型           │
-│ [Plan]            进行中的计划       │ section / item      │
-│ [Queued]          待执行输入（将来时）│                     │
-│ Composer          持续可编辑输入区    │                     │
-│   ├ [Provider Status] 当前运行状态   │                     │
-│   └ [Interaction Dock] 补全/选择/审批│                     │
-│ [Toast]           短寿命操作回执     │                     │
-│ Footer            常驻状态          │                     │
+│ TimelineSurface                    │ SidecarSurface      │
+│   Transcript      可滚动历史（过去时）│   辅助读模型          │
+│   [Plan]          进行中的计划       │   section / item    │
+│ ComposerSurface                    │                     │
+│   [Queued]        待执行输入（将来时）│                     │
+│   ActivitySurface 当前运行状态       │                     │
+│   ComposerEditor  持续可编辑输入区    │                     │
+│   [Interaction Dock] 补全/选择/审批  │                     │
+│ FooterSurface                      │                     │
+│   [Toast]         短寿命操作回执     │                     │
+│   Footer text     常驻状态           │                     │
 └────────────────────────────────────┴─────────────────────┘
 ```
 
@@ -39,7 +42,7 @@ Transcript 是可滚动的过去时区域，接收 message 与 activity block �
 
 ## Plan
 
-`PlanPinned` 位于 transcript 与 queued input 之间，展示接入方下发的当前计划；空数组即隐藏。是否下发、何时撤下由 harness 决定，chat-tui 只负责非空渲染。超长计划的窗口对准第一个未完成项，使当前进度保持可见。
+`PlanPinned` 跟随 `TimelineSurface`，位于 transcript 与 queued input 之间，展示接入方下发的当前计划；空数组即隐藏。是否下发、何时撤下由 harness 决定，chat-tui 只负责非空渲染。超长计划的窗口对准第一个未完成项，使当前进度保持可见。
 
 ## Queued
 
@@ -47,15 +50,16 @@ Transcript 是可滚动的过去时区域，接收 message 与 activity block �
 
 ## Composer
 
-Composer 是固定在历史区下方、供用户持续组织和修改输入的创作面，不是只在 agent 空闲时开放的一次性提交框。它包含可选的 Provider Status、输入框及贴近输入框的 Interaction Dock；设计优先级始终偏向方便用户表达，并保护尚未提交的输入。
+`ComposerSurface` 固定在历史区下方，是供用户持续组织和修改输入的创作面，不是只在 agent 空闲时开放的一次性提交框。它组合 queued input、独立的 `ActivitySurface`、持有 textarea buffer 的 `ComposerEditor` 及贴近输入框的 Interaction Dock；设计优先级始终偏向方便用户表达，并保护尚未提交的输入。
 
 输入区遵守以下不变量：
 
 1. **输出与输入可以同时发生**：transcript 仍在流式更新时，用户也可能已经开始准备下一条输入。transcript 或运行状态更新不得抢走焦点、覆盖或清空 draft，也不得阻塞继续编辑；agent 是否忙只影响提交后的路由，不影响输入本身。
 2. **多行是输入语义的一部分**：换行、光标位置和未提交 draft 必须完整保留；高度调整、补全、历史或队列召回等交互不能意外归一化或丢失这些内容。
 3. **编辑状态只有一个权威修改通道**：textarea 自持内部 buffer，React 侧 draft 只是用于候选推导和按键分层的镜像。清空或覆写必须经过 `ComposerHandle`，确保两侧同步，不能因外部快照刷新重建用户输入。
+4. **渲染依赖按 Surface 隔离**：Timeline、Composer、Activity、Footer 与 Sidecar 分别订阅自己的稳定快照；父级布局变化最多重排区域，不能使 textarea 随无关 read model 重渲染。ComposerEditor 保留 memo 边界，Activity、Footer、Sidecar 或流式 Timeline 更新都不重建编辑器。
 
-- Provider Status 描述当前输入目标与运行相位，是 composer 的组成部分而非独立历史层。`runStatus` 的 label 由接入方格式化，elapsed 根据 `startedAt` 在组件内跳秒，author 着色与 transcript 共用 `agentColorFor`。
+- `ActivitySurface` 描述当前输入目标与运行相位，视觉上贴在 ComposerEditor 上方，但拥有独立订阅边界。`runStatus` 的 label 由接入方格式化，elapsed 根据 `startedAt` 在组件内跳秒，author 着色与 transcript 共用 `agentColorFor`。
 - Interaction Dock 锚定输入区，承载 Suggestions、Picker、ApprovalCard 与 QuestionCard；请求排队和业务语义归 harness，chat-tui 只呈现当前请求并回传用户 intent。
 - Picker 可携带搜索框：本地模式即时过滤当前选项，远端模式展示 harness 返回的 loading/结果快照。搜索框聚焦时 ↑/↓ 仍移动选项、Enter 选择；Esc 先清空查询，再次 Esc 才关闭 Picker。
 
@@ -63,4 +67,4 @@ Composer 体验不是封闭的功能清单。后续发现新的输入便利能�
 
 ## Toast 与 Footer
 
-Toast 来自 `toast`，只承载短寿命操作回执或错误，有内容时显示在 Footer 上方。Footer 来自 `footer`，承载用户随时可查的常驻状态；Toast 出现时不得替换或隐藏 Footer。需要长期回看的信息应进入 Transcript，跨时间线的当前读模型可进入 Sidecar，而不是停留在 Toast。
+`FooterSurface` 同时承载两种不同寿命的信息：Toast 来自 `toast`，只承载短寿命操作回执或错误；footer text 来自 `footer`，承载用户随时可查的常驻状态。Toast 出现时不得替换或隐藏 footer text。需要长期回看的信息应进入 Timeline，跨时间线的当前读模型可进入 Sidecar，而不是停留在 Toast。

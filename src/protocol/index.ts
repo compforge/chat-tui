@@ -1,8 +1,8 @@
 // chat-tui 的接入协议：接入方实现 ChatProtocol，ChatShell 负责渲染与交互。
 //
-//   输出（接入方 → TUI）：getView() 返回完整视图快照 + subscribe() 变更通知。
-//     选快照而非增量事件：TUI 规模下全量重渲染足够便宜，接入方不用维护
-//     delta 语义，本地 harness 和远端转发（SSE/WebSocket → 本地状态）实现同构。
+//   输出（接入方 → TUI）：presentation 提供五个 Surface 的稳定快照。
+//     getView() + subscribe() 是兼容入口；新接入方应提供 presentation，避免无关
+//     read model 变化让 timeline / composer / activity / footer / sidecar 互相触发重渲染。
 //   输入（TUI → 接入方）：submit / command / cancel / exit / searchPicker / resolvePicker /
 //     resolveInteraction / recallQueued。这些是用户意图（intent，MVI 语义）：TUI 已把
 //     原始按键翻译成语义级请求，只表达"用户想干什么"；如何执行（发本地进程还是
@@ -19,13 +19,14 @@ import type {
   ToastMessage,
   TranscriptItem,
 } from "../types/index.ts";
+import type { ChatPresentation } from "./presentation.ts";
 
 export interface ChatViewState {
   transcript: TranscriptItem[];
   /** 有 turn 在跑：Esc 变为"打断"，输入框边框高亮 */
   busy?: boolean;
   /**
-   * Provider Status 区：贴 composer 顶部的"现在时"状态行，不随历史滚动。
+   * ActivitySurface：贴 composer 顶部的"现在时"运行状态，不随历史滚动。
    * 首条为主行（当前输入目标 + 运行相位），其余为附加行（其他活跃 agent / 子 agent）。
    * 空/缺省即隐藏不占高度。
    */
@@ -62,6 +63,11 @@ export interface ChatViewState {
 
 export interface ChatProtocol {
   // ===== 输出：接入方 → TUI =====
+  /**
+   * 五个 Surface 各自订阅的 read model。存在时 ChatShell 不再订阅完整 getView()；
+   * 接入方通常用 createChatPresentationRuntime 创建并提交。
+   */
+  presentation?: ChatPresentation;
   /**
    * 返回当前视图快照。ChatShell 用 useSyncExternalStore 消费：
    * 未变化时必须返回同一对象引用（变化时换新对象），否则会触发无限重渲染。

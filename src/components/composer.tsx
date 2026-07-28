@@ -1,5 +1,5 @@
 import type { TextareaOptions, TextareaRenderable } from "@opentui/core";
-import { useImperativeHandle, useRef, type ReactNode, type Ref } from "react";
+import { memo, useImperativeHandle, useRef, type ReactNode, type Ref } from "react";
 
 import { defaultTheme, type RunStatusItem, type Theme } from "../types/index.ts";
 import { RunStatus } from "./run-status.tsx";
@@ -29,15 +29,10 @@ export interface ComposerHandle {
   cursorAtBoundary(): boolean;
 }
 
-export interface ComposerProps {
+export interface ComposerEditorProps {
   ref?: Ref<ComposerHandle>;
-  /** 边框标题；Provider Status 已承载输入目标信息时通常不再需要 */
+  /** 边框标题；ActivitySurface 已承载输入目标信息时通常不再需要 */
   title?: string;
-  /**
-   * Provider Status 区：贴输入框顶部的"现在时"状态行。
-   * 挂在 Composer 上（而非独立层）：状态描述的是输入目标的当下，随输入框固定在底部。
-   */
-  status?: RunStatusItem[];
   placeholder?: string;
   focused: boolean;
   /** 高亮边框表达"正在跑"（borderActive） */
@@ -46,6 +41,14 @@ export interface ComposerProps {
   keyBindings?: NonNullable<TextareaOptions["keyBindings"]>;
   onChange: (text: string) => void;
   onSubmit: (text: string) => void;
+}
+
+export interface ComposerProps extends ComposerEditorProps {
+  /**
+   * 兼容入口：把运行状态贴在输入框顶部。
+   * ChatShell 使用独立 ActivitySurface，真正持有 textarea buffer 的 ComposerEditor 独立 memo。
+   */
+  status?: RunStatusItem[];
 }
 
 /** 输入区高度估算：显式换行时随内容长高，上限 maxLines 行（+2 是边框） */
@@ -57,7 +60,9 @@ export function composerHeightFor(draft: string, maxLines = 6): number {
  * 多行输入框。textarea 自持内部 buffer，消费方的 draft state 只是镜像
  * （供候选推导/按键分层用）——清空/覆写必须走 ComposerHandle，两边才能一致。
  */
-export function Composer(props: ComposerProps): ReactNode {
+export const ComposerEditor = memo(function ComposerEditor(
+  props: ComposerEditorProps,
+): ReactNode {
   const theme = props.theme ?? defaultTheme;
   const textarea = useRef<TextareaRenderable | null>(null);
 
@@ -81,32 +86,41 @@ export function Composer(props: ComposerProps): ReactNode {
   }));
 
   return (
-    // marginTop 归分组容器：Provider Status 行与输入框之间不留空行，视觉上"贴"在边框顶部
-    <box style={{ width: "100%", flexShrink: 0, marginTop: 1, flexDirection: "column" }}>
-      <RunStatus items={props.status ?? []} theme={theme} />
-      <box
-        title={props.title}
-        border
-        borderColor={props.busy ? theme.borderActive : theme.border}
-        style={{ width: "100%", flexShrink: 0 }}
-      >
-        <textarea
-          ref={textarea}
-          focused={props.focused}
-          placeholder={props.placeholder}
-          wrapMode="word"
-          minHeight={1}
-          maxHeight={6}
-          width="100%"
-          cursorStyle={{ style: "line", blinking: true }}
-          keyBindings={props.keyBindings ?? COMPOSER_KEY_BINDINGS}
-          onContentChange={() => props.onChange(textarea.current?.plainText ?? "")}
-          onSubmit={() => {
-            // textarea 的 submit 事件不带值，从内部 buffer 读
-            props.onSubmit(textarea.current?.plainText ?? "");
-          }}
-        />
-      </box>
+    <box
+      title={props.title}
+      border
+      borderColor={props.busy ? theme.borderActive : theme.border}
+      style={{ width: "100%", flexShrink: 0 }}
+    >
+      <textarea
+        ref={textarea}
+        focused={props.focused}
+        placeholder={props.placeholder}
+        wrapMode="word"
+        minHeight={1}
+        maxHeight={6}
+        width="100%"
+        cursorStyle={{ style: "line", blinking: true }}
+        keyBindings={props.keyBindings ?? COMPOSER_KEY_BINDINGS}
+        onContentChange={() => props.onChange(textarea.current?.plainText ?? "")}
+        onSubmit={() => {
+          // textarea 的 submit 事件不带值，从内部 buffer 读
+          props.onSubmit(textarea.current?.plainText ?? "");
+        }}
+      />
     </box>
   );
-}
+});
+
+/** 兼容的一站式输入区；状态变化只重渲染外壳，不进入 ComposerEditor。 */
+export const Composer = memo(function Composer(props: ComposerProps): ReactNode {
+  const theme = props.theme ?? defaultTheme;
+  const { status, ...editor } = props;
+  return (
+    // marginTop 归分组容器：Activity 行与输入框之间不留空行，视觉上"贴"在边框顶部
+    <box style={{ width: "100%", flexShrink: 0, marginTop: 1, flexDirection: "column" }}>
+      <RunStatus items={status ?? []} theme={theme} />
+      <ComposerEditor {...editor} />
+    </box>
+  );
+});

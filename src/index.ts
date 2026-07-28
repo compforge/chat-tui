@@ -4,6 +4,7 @@
 
 export * from "./types/index.ts";
 export * from "./protocol/index.ts";
+export * from "./protocol/presentation.ts";
 export * from "./utils/text.ts";
 export * from "./utils/time.ts";
 export * from "./components/clip.ts";
@@ -15,8 +16,10 @@ export { ChatShell, type ChatShellProps } from "./components/chat-shell.tsx";
 export { Transcript, type TranscriptProps } from "./components/transcript.tsx";
 export {
   Composer,
+  ComposerEditor,
   COMPOSER_KEY_BINDINGS,
   composerHeightFor,
+  type ComposerEditorProps,
   type ComposerHandle,
   type ComposerProps,
 } from "./components/composer.tsx";

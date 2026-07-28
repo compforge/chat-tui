@@ -6,6 +6,7 @@ import { createElement } from "react";
 
 import { ChatShell } from "../src/components/chat-shell.tsx";
 import type { ChatProtocol, ChatViewState } from "../src/protocol/index.ts";
+import { createChatPresentationRuntime } from "../src/protocol/presentation.ts";
 import type { InteractionResponse } from "../src/types/index.ts";
 
 let mounted: { root: Root; setup: TestRendererSetup } | null = null;
@@ -61,6 +62,32 @@ async function mount(protocol: ChatProtocol) {
 }
 
 describe("InteractionDock", () => {
+  test("preserves the active composer while the sidecar updates", async () => {
+    const harness = testProtocol({ transcript: [] });
+    const runtime = createChatPresentationRuntime(harness.protocol.getView());
+    harness.protocol.presentation = runtime;
+    const { setup, composer } = await mount(harness.protocol);
+
+    for (const key of "draft") setup.mockInput.pressKey(key);
+    await setup.waitFor(() => composer.plainText === "draft");
+
+    runtime.commit({
+      sidecar: {
+        title: "Board",
+        mode: "open",
+        sections: [{ id: "active", items: [{ id: "task", title: "Reconcile" }] }],
+      },
+    });
+    await setup.flush();
+
+    const currentComposer = [...Renderable.renderablesByNumber.values()].find(
+      (renderable): renderable is TextareaRenderable =>
+        renderable instanceof TextareaRenderable,
+    );
+    expect(currentComposer).toBe(composer);
+    expect(currentComposer?.plainText).toBe("draft");
+  });
+
   test("shows a suggested input without overwriting the composer", async () => {
     const harness = testProtocol({
       transcript: [],

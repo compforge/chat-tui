@@ -9,7 +9,7 @@ export interface RunStatusProps {
 }
 
 /**
- * Provider Status 区（贴 composer 顶部，由 Composer 组合渲染）："现在时"信息，不随历史滚动。
+ * ActivitySurface 的状态行："现在时"信息，视觉上贴 composer 顶部但独立订阅。
  * author 着色沿用 theme.agentColorFor，与 transcript 的作者名同源同色；空列表不占高度。
  * 外层间距归 Composer 的分组容器，这里不带 margin。
  */

@@ -8,13 +8,30 @@ import {
   useSelectionHandler,
   useTerminalDimensions,
 } from "@opentui/react";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 
 import type { ChatProtocol } from "../protocol/index.ts";
+import {
+  createChatPresentationRuntime,
+  type ChatPresentation,
+  type SurfaceChannel,
+} from "../protocol/presentation.ts";
 import {
   defaultTheme,
   type CommandSpec,
   type InteractionView,
+  type SidecarView,
   type Theme,
   type ToastMessage,
 } from "../types/index.ts";
@@ -22,7 +39,11 @@ import type { ClipPolicy } from "./clip.ts";
 import { parseSlashCommand } from "./commands.ts";
 import { acceptCompletion, buildCandidates, triggerAt, type Candidate } from "./completion.ts";
 import { CTRL_C_CONFIRM_WINDOW_MS, ctrlCAction, escapeAction } from "./keys.ts";
-import { Composer, composerHeightFor, type ComposerHandle } from "./composer.tsx";
+import {
+  ComposerEditor,
+  composerHeightFor,
+  type ComposerHandle,
+} from "./composer.tsx";
 import { InteractionDock } from "./interaction-dock.tsx";
 import {
   Picker,
@@ -31,7 +52,8 @@ import {
 } from "./interaction-widgets.tsx";
 import { PlanPinned } from "./plan-pinned.tsx";
 import { InputArea } from "./queued.tsx";
-import { Sidecar, sidecarLayout } from "./sidecar.tsx";
+import { RunStatus } from "./run-status.tsx";
+import { Sidecar, sidecarLayout, type SidecarLayout } from "./sidecar.tsx";
 import { ToastLine } from "./toast-line.tsx";
 import { useTokenSelectionOnDoubleClick } from "./token-selection.ts";
 import { Transcript } from "./transcript.tsx";
@@ -55,6 +77,22 @@ export function ChatShell(props: ChatShellProps): ReactNode {
   const theme = props.theme ?? defaultTheme;
   const renderer = useRenderer();
   const terminal = useTerminalDimensions();
+  const [localToast, setLocalToast] = useState<ToastMessage | null>(null);
+  const presentation = useMemo(
+    () => protocol.presentation ?? createChatPresentationRuntime(protocol.getView()),
+    [protocol],
+  );
+
+  useEffect(() => {
+    if (protocol.presentation) return;
+    const runtime = presentation as ReturnType<typeof createChatPresentationRuntime>;
+    const sync = () => runtime.commitView(protocol.getView());
+    const unsubscribe = protocol.subscribe(sync);
+    // 覆盖首次 render 到 effect 建立订阅之间可能发生的变化。
+    sync();
+    return unsubscribe;
+  }, [presentation, protocol]);
+
   useSelectionHandler((selection) => {
     const selectedText = selection.getSelectedText();
     if (selectedText) renderer.copyToClipboardOSC52(selectedText);
@@ -63,16 +101,137 @@ export function ChatShell(props: ChatShellProps): ReactNode {
   // target 沿 parent 链冒泡，所有后代文本（含未来新增的组件）天然被覆盖，
   // 不再 per-widget 挂载——那条路每加一种文本 renderable 就漏一次。
   const selectTokenOnDoubleClick = useTokenSelectionOnDoubleClick();
-  const view = useSyncExternalStore(
-    useCallback((onChange) => protocol.subscribe(onChange), [protocol]),
-    () => protocol.getView(),
+  const sidecar = useSurface(presentation.sidecar);
+  const currentSidecarLayout = sidecarLayout(sidecar, terminal.width);
+
+  return (
+    <box
+      style={{ flexDirection: "row", flexGrow: 1, position: "relative" }}
+      onMouseDown={selectTokenOnDoubleClick}
+    >
+      <box style={{ flexDirection: "column", flexGrow: 1, position: "relative" }}>
+        <TimelineSurface
+          presentation={presentation}
+          theme={theme}
+          clipPolicy={props.clipPolicy}
+        />
+        <ComposerSurface
+          protocol={protocol}
+          presentation={presentation}
+          commands={props.commands}
+          mentions={props.mentions}
+          theme={theme}
+          sidecarLayout={currentSidecarLayout}
+          setLocalToast={setLocalToast}
+        />
+        <FooterSurface
+          presentation={presentation}
+          localToast={localToast}
+          theme={theme}
+        />
+      </box>
+
+      <SidecarSurface
+        view={sidecar}
+        layout={currentSidecarLayout}
+        theme={theme}
+      />
+    </box>
   );
+}
+
+function useSurface<T>(channel: SurfaceChannel<T>): T {
+  return useSyncExternalStore(
+    useCallback((onChange) => channel.subscribe(onChange), [channel]),
+    channel.getSnapshot,
+    channel.getSnapshot,
+  );
+}
+
+const TimelineSurface = memo(function TimelineSurface(props: {
+  presentation: ChatPresentation;
+  theme: Theme;
+  clipPolicy?: ClipPolicy;
+}): ReactNode {
+  const view = useSurface(props.presentation.timeline);
+  return (
+    <>
+      <Transcript
+        header={view.header}
+        items={view.items}
+        showThoughts={view.showThoughts}
+        theme={props.theme}
+        clipPolicy={props.clipPolicy}
+      />
+      <PlanPinned entries={view.plan ?? []} theme={props.theme} />
+    </>
+  );
+});
+
+const FooterSurface = memo(function FooterSurface(props: {
+  presentation: ChatPresentation;
+  localToast: ToastMessage | null;
+  theme: Theme;
+}): ReactNode {
+  const footer = useSurface(props.presentation.footer);
+  return (
+    <ToastLine
+      toast={props.localToast ?? footer.toast ?? null}
+      fallback={footer.text ?? ""}
+      theme={props.theme}
+    />
+  );
+});
+
+const ActivitySurface = memo(function ActivitySurface(props: {
+  presentation: ChatPresentation;
+  theme: Theme;
+}): ReactNode {
+  const activity = useSurface(props.presentation.activity);
+  return <RunStatus items={activity.items ?? []} theme={props.theme} />;
+});
+
+const SidecarSurface = memo(function SidecarSurface(props: {
+  view: SidecarView | undefined;
+  layout: SidecarLayout;
+  theme: Theme;
+}): ReactNode {
+  if (!props.view || props.layout === "hidden") return null;
+  if (props.layout === "inline") {
+    return <Sidecar view={props.view} theme={props.theme} />;
+  }
+  return (
+    <box
+      style={{
+        position: "absolute",
+        top: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 300,
+      }}
+    >
+      <Sidecar view={props.view} theme={props.theme} overlay />
+    </box>
+  );
+});
+
+const ComposerSurface = memo(function ComposerSurface(props: {
+  protocol: ChatProtocol;
+  presentation: ChatPresentation;
+  commands: readonly CommandSpec[];
+  mentions?: (prefix: string) => Candidate[];
+  theme: Theme;
+  sidecarLayout: SidecarLayout;
+  setLocalToast: Dispatch<SetStateAction<ToastMessage | null>>;
+}): ReactNode {
+  const { protocol } = props;
+  const theme = props.theme;
+  const composerView = useSurface(props.presentation.composer);
+  const setLocalToast = props.setLocalToast;
 
   const [draft, setDraft] = useState("");
   const composer = useRef<ComposerHandle | null>(null);
   const [editingSuggestionId, setEditingSuggestionId] = useState<string | null>(null);
-  // 本地 toast（Ctrl+C 二次确认等）优先于接入方 toast。
-  const [localToast, setLocalToast] = useState<ToastMessage | null>(null);
   const [suggIdx, setSuggIdx] = useState(0);
   const [suggDismissed, setSuggDismissed] = useState(false);
   const [pickerInput, setPickerInput] = useState<{
@@ -122,7 +281,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
 
   // 候选由输入实时推导（/ 行首=命令，@ =引用），无独立状态需要同步
   const trigger = triggerAt(draft);
-  const interactions = view.interactions ?? [];
+  const interactions = composerView.interactions ?? [];
   const editingSuggestion = editingSuggestionId
     ? interactions.find(
         (
@@ -137,7 +296,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
   const activeInteraction = visibleInteractions[0] ?? null;
   const blockingInteraction =
     activeInteraction?.kind === "approval" || activeInteraction?.kind === "question";
-  const picker = view.picker ?? null;
+  const picker = composerView.picker ?? null;
   const activePickerInput =
     pickerInput && picker && pickerInput.id === picker.id
       ? pickerInput
@@ -232,8 +391,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
     [editingSuggestion, props.commands, protocol, resetComposer],
   );
 
-  const busy = view.busy ?? false;
-  const currentSidecarLayout = sidecarLayout(view.sidecar, terminal.width);
+  const busy = composerView.busy ?? false;
   const updatePickerQuery = useCallback(
     (query: string) => {
       if (!picker?.search) return;
@@ -289,7 +447,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
       return;
     }
     if (key.name === "escape") {
-      if (currentSidecarLayout === "overlay" && protocol.dismissSidecar) {
+      if (props.sidecarLayout === "overlay" && protocol.dismissSidecar) {
         key.preventDefault();
         protocol.dismissSidecar();
         return;
@@ -399,93 +557,77 @@ export function ChatShell(props: ChatShellProps): ReactNode {
     }
   });
 
-  const visibleToast = localToast ?? view.toast ?? null;
-  // 输入区随内容长高；footer 常驻一行，toast 存在时再占一行。
-  const dockBottom = composerHeightFor(draft) + 1 + (visibleToast ? 1 : 0);
+  // Overlay 固定为 FooterSurface 预留两行（toast + footer），让 footer 更新
+  // 无需反向通知 ComposerSurface 重新计算锚点。
+  const dockBottom = composerHeightFor(draft) + 2;
+  const handleComposerChange = useCallback(
+    (text: string) => {
+      if (text) disarmCtrlCExit();
+      setDraft(text);
+      setSuggDismissed(false);
+      setSuggIdx(0);
+    },
+    [disarmCtrlCExit],
+  );
+  const handleComposerSubmit = useCallback(
+    (text: string) => void send(text),
+    [send],
+  );
 
   return (
-    <box
-      style={{ flexDirection: "row", flexGrow: 1, position: "relative" }}
-      onMouseDown={selectTokenOnDoubleClick}
-    >
-      <box style={{ flexDirection: "column", flexGrow: 1, position: "relative" }}>
-        <Transcript
-          header={view.header}
-          items={view.transcript}
-          showThoughts={view.showThoughts}
-          theme={theme}
-          clipPolicy={props.clipPolicy}
-        />
-
-        {/* scrollbox 外都是"非过去时"：plan pin（进行中）→ 队列（将来时）→ composer（现在时，Provider Status 挂其顶部） */}
-        <PlanPinned entries={view.plan ?? []} theme={theme} />
-
-        <InputArea items={view.queued ?? []} theme={theme}>
-          <Composer
+    <>
+      <InputArea items={composerView.queued ?? []} theme={theme}>
+        <box
+          style={{
+            width: "100%",
+            flexShrink: 0,
+            marginTop: 1,
+            flexDirection: "column",
+          }}
+        >
+          <ActivitySurface
+            presentation={props.presentation}
+            theme={theme}
+          />
+          <ComposerEditor
             ref={composer}
-            status={view.runStatus}
-            placeholder={view.composerPlaceholder}
+            placeholder={composerView.placeholder}
             focused={!blockingInteraction && !picker}
             busy={busy}
             theme={theme}
-            onChange={(text) => {
-              if (text) disarmCtrlCExit();
-              setDraft(text);
-              setSuggDismissed(false);
-              setSuggIdx(0);
-            }}
-            onSubmit={(text) => void send(text)}
+            onChange={handleComposerChange}
+            onSubmit={handleComposerSubmit}
           />
-        </InputArea>
-
-        <Suggestions candidates={candidates} selectedIndex={sel} anchorBottom={dockBottom} theme={theme} />
-
-        <ToastLine toast={visibleToast} fallback={view.footer ?? ""} theme={theme} />
-
-        {picker && !blockingInteraction && !activeInteraction && (
-          <Picker
-            picker={picker}
-            query={pickerQuery}
-            selectedIndex={pickerSelectedIndex}
-            anchorBottom={dockBottom}
-            theme={theme}
-            onQueryChange={updatePickerQuery}
-            onSelectionChange={(selectedIndex) =>
-              setPickerInput({
-                id: picker.id,
-                query: pickerQuery,
-                selectedIndex,
-              })}
-            onSelect={(value) => protocol.resolvePicker(picker.id, value)}
-          />
-        )}
-
-        <InteractionDock
-          interactions={visibleInteractions}
-          anchorBottom={dockBottom}
-          canUseSuggestedInput={!draft}
-          theme={theme}
-          onResolve={(id, response) => void protocol.resolveInteraction(id, response)}
-        />
-      </box>
-
-      {currentSidecarLayout === "inline" && view.sidecar ? (
-        <Sidecar view={view.sidecar} theme={theme} />
-      ) : null}
-
-      {currentSidecarLayout === "overlay" && view.sidecar ? (
-        <box
-          style={{
-            position: "absolute",
-            top: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 300,
-          }}
-        >
-          <Sidecar view={view.sidecar} theme={theme} overlay />
         </box>
-      ) : null}
-    </box>
+      </InputArea>
+
+      <Suggestions candidates={candidates} selectedIndex={sel} anchorBottom={dockBottom} theme={theme} />
+
+      {picker && !blockingInteraction && !activeInteraction && (
+        <Picker
+          picker={picker}
+          query={pickerQuery}
+          selectedIndex={pickerSelectedIndex}
+          anchorBottom={dockBottom}
+          theme={theme}
+          onQueryChange={updatePickerQuery}
+          onSelectionChange={(selectedIndex) =>
+            setPickerInput({
+              id: picker.id,
+              query: pickerQuery,
+              selectedIndex,
+            })}
+          onSelect={(value) => protocol.resolvePicker(picker.id, value)}
+        />
+      )}
+
+      <InteractionDock
+        interactions={visibleInteractions}
+        anchorBottom={dockBottom}
+        canUseSuggestedInput={!draft}
+        theme={theme}
+        onResolve={(id, response) => void protocol.resolveInteraction(id, response)}
+      />
+    </>
   );
-}
+});
