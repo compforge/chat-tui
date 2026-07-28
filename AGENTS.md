@@ -31,14 +31,13 @@ chat-tui/
 
 ## 关键约定
 
-- **边界以是否理解 agent 语义为准**：chat-tui 只接收展示快照、产出用户 intent，不拥有 session / turn / provider / 事件流语义；具体命令、引用源和 theme 均由接入方注入。协议边界与快照契约见 `docs/protocol.md`。
-- **展示必须诚实且保持语义正交**：展示模型不冒充上游事件，结果、提示、来源和正文格式各自表达；未知值显式暴露，不静默伪装成已知状态。具体投影与裁剪规则见 `docs/surfaces.md`。
-- **State / Store / Surface 各司其职**：State 是数据组织单元，Store 负责发布和订阅，Surface 是独立渲染单元；三者相关但不要求一一对应。Surface 通过 Store 直接订阅所需 State，壳层不代订阅后再逐级传值；Sidecar、状态或流式输出更新不能让 Composer 丢焦点、重建 buffer 或清空 draft。具体边界见 `docs/protocol.md` 与 `docs/surfaces.md`。
-- **实现以纯逻辑和领域内聚为先**：交互/展示规则优先写成可测试的纯函数，组件只做粘合；逻辑归所属 Surface，只有跨 Surface 的终端原语进入 `terminal/`。内部路径不是兼容边界，公开 API 只由根 `index.ts` 定义。实现细则见 `docs/implementation.md`。
+- **边界以是否理解 agent 语义为准**：chat-tui 只接收展示 State、产出用户 intent，不拥有 session / turn / provider / 事件流语义；具体命令、引用源和 theme 均由接入方注入。核心模型与协议边界见 `docs/kernel.md`。
+- **展示必须诚实且保持语义正交**：展示数据不冒充上游事件，结果、提示、来源和正文格式各自表达；未知值显式暴露，不静默伪装成已知状态。具体展示与裁剪规则见 `docs/surfaces.md`。
+- **State / Store / Surface 各司其职**：State 是数据组织单元，Store 负责发布和订阅，Surface 是独立渲染单元；三者相关但不要求一一对应。无关 State 更新不能让 Composer 丢焦点、重建 buffer 或清空 draft。具体边界见 `docs/kernel.md`。
+- **实现以纯逻辑和领域内聚为先**：交互/展示规则优先写成可测试的纯函数，组件只做粘合；逻辑归所属 Surface，只有跨 Surface 的终端原语进入 `terminal/`。内部路径不是兼容边界，公开 API 只由根 `index.ts` 定义。代码边界见 `docs/kernel.md`。
 
 ## References
 
 - `README.md` — 对外文档：protocol 表、快速上手、能力清单
-- `docs/protocol.md` — chat-tui 与 harness 的协议边界、快照契约和注入点
+- `docs/kernel.md` — State / Store / Surface 核心模型、双向流程与代码边界
 - `docs/surfaces.md` — Surface 区块、时态分层、展示语义与视觉行预算
-- `docs/implementation.md` — 纯逻辑组织、通用原语边界和全局交互实现约束
