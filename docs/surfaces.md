@@ -4,7 +4,7 @@
 
 主对话自上而下按信息的时态与寿命分层：越接近现在的信息越靠下、越固定，不随历史滚动。可选 Sidecar 与主对话并列，承载跨时间线的辅助读模型。展示层可以压缩信息，但不能改写事实；不同维度保持正交，未知输入显式暴露，裁剪只影响当前视图而不截断接入方传入的数据。
 
-Surface 是 chat-tui 的独立渲染单位：每个 Surface 是独立订阅自己状态通道的 React 子树，按语义命名和组合，不需要共同基类或注册器。带方括号的区块是条件渲染，无内容时不占空间：
+Surface 是 chat-tui 的独立渲染单位：每个 Surface 是通过 Store 直接订阅所需 State 的 React 子树，按语义命名和组合，不需要共同基类或注册器。State 是数据组织单元，Store 负责发布和订阅；State 与 Surface 有对应关系但不要求一一对应。带方括号的区块是条件渲染，无内容时不占空间：
 
 ```text
 ┌ Main chat ─────────────────────────┬ [Sidecar] ─────────┐
@@ -57,7 +57,7 @@ Transcript 是可滚动的过去时区域，接收 message 与 activity block �
 1. **输出与输入可以同时发生**：transcript 仍在流式更新时，用户也可能已经开始准备下一条输入。transcript 或运行状态更新不得抢走焦点、覆盖或清空 draft，也不得阻塞继续编辑；agent 是否忙只影响提交后的路由，不影响输入本身。
 2. **多行是输入语义的一部分**：换行、光标位置和未提交 draft 必须完整保留；高度调整、补全、历史或队列召回等交互不能意外归一化或丢失这些内容。
 3. **编辑状态只有一个权威修改通道**：textarea 自持内部 buffer，React 侧 draft 只是用于候选推导和按键分层的镜像。清空或覆写必须经过 `ComposerHandle`，确保两侧同步，不能因外部快照刷新重建用户输入。
-4. **渲染依赖按 Surface 隔离**：Timeline、Composer、Activity、Footer 与 Sidecar 分别订阅自己的稳定快照；父级布局变化最多重排区域，不能使 textarea 随无关 read model 重渲染。ComposerEditor 保留 memo 边界，Activity、Footer、Sidecar 或流式 Timeline 更新都不重建编辑器。
+4. **渲染依赖由 Surface 自己声明**：Timeline、Composer、Activity、Footer 与 Sidecar 直接订阅所需 State，ChatShell 不订阅具体内容。Composer 除自身 State 外只消费 sidecar 的布局 selector；Board 内容更新但布局不变时，Sidecar 独立重绘，Composer 与 textarea 不参与。ComposerEditor 仍保留 memo 边界作为输入缓冲的最后一道保护。
 
 - `ActivitySurface` 描述当前输入目标与运行相位，视觉上贴在 ComposerEditor 上方，但拥有独立订阅边界。`runStatus` 的 label 由接入方格式化，elapsed 根据 `startedAt` 在组件内跳秒，author 着色与 transcript 共用 `agentColorFor`。
 - Interaction Dock 锚定输入区，承载 Suggestions、Picker、ApprovalCard 与 QuestionCard；请求排队和业务语义归 harness，chat-tui 只呈现当前请求并回传用户 intent。

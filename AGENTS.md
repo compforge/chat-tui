@@ -15,9 +15,9 @@ chat-tui 是终端 chat/agent 界面的**组件层**（基于 opentui + react）
 chat-tui/
 ├── src/
 │   ├── index.ts             # 唯一对外入口（package exports 直指 TS 源码，无构建步骤）
-│   ├── surface.ts           # 通用 Surface 订阅原语 + React hook
-│   ├── protocol/            # ChatProtocol、五路 Surface store 与完整 View 兼容适配
-│   ├── chat/                # ChatShell + 五个独立订阅的具体 Surface
+│   ├── state.ts             # Store 订阅契约、State selector 与 React hooks
+│   ├── protocol/            # ChatProtocol、State 形状与 Store
+│   ├── chat/                # ChatShell + 五个独立渲染的具体 Surface
 │   ├── types/index.ts       # 视图模型（TranscriptItem 等）+ Theme
 │   ├── utils/               # 只放真通用原语：无 chat-tui 业务语义，换个终端 App 也能用
 │   │   ├── text.ts          # 终端文本：显示宽度度量、行清洗、按显示宽度 wrap（clip 与 selection 共用）
@@ -44,7 +44,7 @@ chat-tui/
 │       ├── sidecar.tsx      # 可选右侧辅助视图；宽屏内联、窄屏按需 overlay、空数据隐藏
 │       └── toast-line.tsx   # 底部提示行（瞬时 toast 优先，footer 常驻）
 ├── examples/echo.tsx        # 假 harness 全交互演示：bun examples/echo.tsx
-└── tests/                   # bun test；只测纯逻辑，组件靠 typecheck + example 人工验证
+└── tests/                   # bun test；纯逻辑与关键输入/渲染隔离均有回归测试
 ```
 
 运行时 Bun。验证命令：`bun run check`（typecheck + test）。
@@ -53,7 +53,7 @@ chat-tui/
 
 - **边界以是否理解 agent 语义为准**：chat-tui 只接收展示快照、产出用户 intent，不拥有 session / turn / provider / 事件流语义；具体命令、引用源和 theme 均由接入方注入。协议边界与快照契约见 `docs/protocol.md`。
 - **展示必须诚实且保持语义正交**：展示模型不冒充上游事件，结果、提示、来源和正文格式各自表达；未知值显式暴露，不静默伪装成已知状态。具体投影与裁剪规则见 `docs/surfaces.md`。
-- **主对话按信息时态分层，渲染订阅按 Surface 隔离**：Timeline、Composer、Activity、Footer、Sidecar 各消费稳定 read model；Surface 是独立订阅的 React 子树，不引入基类或注册器。Sidecar、状态或流式输出更新不能让 Composer 丢焦点、重建 buffer 或清空 draft。区块职责与输入体验原则统一见 `docs/surfaces.md`。
+- **State / Store / Surface 各司其职**：State 是数据组织单元，Store 负责发布和订阅，Surface 是独立渲染单元；三者相关但不要求一一对应。Surface 通过 Store 直接订阅所需 State，壳层不代订阅后再逐级传值；Sidecar、状态或流式输出更新不能让 Composer 丢焦点、重建 buffer 或清空 draft。具体边界见 `docs/protocol.md` 与 `docs/surfaces.md`。
 - **实现以纯逻辑和概念内聚为先**：交互/展示规则优先写成可测试的纯函数，组件只做粘合；概念逻辑与渲染同放，`utils/` 只容纳可跨终端应用复用的原语。实现细则见 `docs/implementation.md`。
 
 ## References

@@ -10,8 +10,10 @@ import { createRoot } from "@opentui/react";
 
 import {
   ChatShell,
+  createChatStore,
   type ChatProtocol,
-  type ChatViewState,
+  type ChatState,
+  type ChatStatePatch,
   type CommandSpec,
   type InteractionResponse,
   type TranscriptItem,
@@ -39,32 +41,60 @@ class EchoHarness implements ChatProtocol {
     ];
   }
 
-  private view: ChatViewState = {
-    transcript: [],
-    header: "chat-tui demo · type to chat · /model picker · /approve approval · /exit quit",
-    runStatus: [{ id: "agent", author: "echo", label: "demo" }],
-    composerPlaceholder: "Message (/ commands, Ctrl+J newline)",
-    footer: "chat-tui echo example",
-    showThoughts: true,
-  };
-  private listeners = new Set<() => void>();
+  readonly stateStore = createChatStore({
+    timeline: {
+      items: [],
+      header: "chat-tui demo · type to chat · /model picker · /approve approval · /exit quit",
+      showThoughts: true,
+    },
+    composer: {
+      placeholder: "Message (/ commands, Ctrl+J newline)",
+    },
+    activity: {
+      items: [{ id: "agent", author: "echo", label: "demo" }],
+    },
+    footer: {
+      text: "chat-tui echo example",
+    },
+    sidecar: undefined,
+  });
   private items: TranscriptItem[] = [];
   private nextId = 1;
   private streaming: ReturnType<typeof setInterval> | null = null;
 
-  getView(): ChatViewState {
-    return this.view;
-  }
-
-  subscribe(onChange: () => void): () => void {
-    this.listeners.add(onChange);
-    return () => this.listeners.delete(onChange);
-  }
-
-  /** 快照式更新：整体替换 view 对象再通知（getView 的引用稳定性要求） */
-  private patch(patch: Partial<ChatViewState>): void {
-    this.view = { ...this.view, transcript: [...this.items], ...patch };
-    for (const listener of this.listeners) listener();
+  private patch(patch: {
+    timeline?: Partial<ChatState["timeline"]>;
+    composer?: Partial<ChatState["composer"]>;
+    activity?: Partial<ChatState["activity"]>;
+    footer?: Partial<ChatState["footer"]>;
+  }): void {
+    const next: ChatStatePatch = {};
+    if (patch.timeline) {
+      next.timeline = {
+        ...this.stateStore.getState("timeline"),
+        items: [...this.items],
+        ...patch.timeline,
+      };
+    }
+    if (patch.composer) {
+      next.composer = {
+        ...this.stateStore.getState("composer"),
+        ...patch.composer,
+      };
+    }
+    if (patch.activity) {
+      next.activity = {
+        ...this.stateStore.getState("activity"),
+        ...patch.activity,
+      };
+    }
+    if (patch.footer) {
+      next.footer = {
+        ...this.stateStore.getState("footer"),
+        ...patch.footer,
+      };
+    }
+    this.stateStore.commit(next);
   }
 
   submit(text: string): void {
@@ -100,8 +130,9 @@ class EchoHarness implements ChatProtocol {
       streaming: true,
     });
     this.patch({
-      busy: true,
-      runStatus: this.agentStatus("thinking…"),
+      timeline: {},
+      composer: { busy: true },
+      activity: { items: this.agentStatus("thinking…") },
     });
 
     // 逐字符流式回显，模拟 agent 输出；工具输出逐行累积——
@@ -124,10 +155,14 @@ class EchoHarness implements ChatProtocol {
           tool.status = "completed";
           tool.title = "Ran echo --stream";
         }
-        this.patch({ busy: false, runStatus: this.agentStatus() });
+        this.patch({
+          timeline: {},
+          composer: { busy: false },
+          activity: { items: this.agentStatus() },
+        });
         return;
       }
-      this.patch({});
+      this.patch({ timeline: {} });
     }, 60);
   }
 
@@ -188,37 +223,41 @@ class EchoHarness implements ChatProtocol {
           { type: "diff", op: "move", path: "src/utils/id.ts", oldPath: "src/id.ts" },
         ],
       });
-      this.patch({});
+      this.patch({ timeline: {} });
       return;
     }
     if (name === "model") {
       this.patch({
-        picker: {
-          id: "picker_model",
-          title: "Select model (demo)",
-          options: [
-            { name: "fast", description: "low latency", value: "fast" },
-            { name: "smart", description: "high quality", value: "smart" },
-          ],
+        composer: {
+          picker: {
+            id: "picker_model",
+            title: "Select model (demo)",
+            options: [
+              { name: "fast", description: "low latency", value: "fast" },
+              { name: "smart", description: "high quality", value: "smart" },
+            ],
+          },
         },
       });
       return;
     }
     if (name === "approve") {
       this.patch({
-        interactions: [{
-          id: "approval_demo",
-          kind: "approval",
-          blocking: true,
-          requester: "echo",
-          approval: {
-            title: `Run "rm -rf ${argument || "/tmp/demo"}"?`,
-            options: [
-              { optionId: "yes", name: "Allow", kind: "allow_once" },
-              { optionId: "no", name: "Deny", kind: "reject_once" },
-            ],
-          },
-        }],
+        composer: {
+          interactions: [{
+            id: "approval_demo",
+            kind: "approval",
+            blocking: true,
+            requester: "echo",
+            approval: {
+              title: `Run "rm -rf ${argument || "/tmp/demo"}"?`,
+              options: [
+                { optionId: "yes", name: "Allow", kind: "allow_once" },
+                { optionId: "no", name: "Deny", kind: "reject_once" },
+              ],
+            },
+          }],
+        },
       });
       return;
     }
@@ -228,13 +267,15 @@ class EchoHarness implements ChatProtocol {
       let done = 0;
       const tick = () => {
         this.patch({
-          plan:
-            done >= steps.length
-              ? undefined
-              : steps.map((content, index) => ({
-                  content,
-                  status: index < done ? ("completed" as const) : index === done ? ("in_progress" as const) : ("pending" as const),
-                })),
+          timeline: {
+            plan:
+              done >= steps.length
+                ? undefined
+                : steps.map((content, index) => ({
+                    content,
+                    status: index < done ? ("completed" as const) : index === done ? ("in_progress" as const) : ("pending" as const),
+                  })),
+          },
         });
         if (done++ < steps.length) setTimeout(tick, 1000);
       };
@@ -243,37 +284,44 @@ class EchoHarness implements ChatProtocol {
     }
     if (name === "question") {
       this.patch({
-        interactions: [{
-          id: "question_demo",
-          kind: "question",
-          blocking: true,
-          requester: "echo",
-          question: {
-            questions: [
-              {
-                id: "approach",
-                header: "Approach",
-                question: "How should the demo proceed?",
-                options: [
-                  { label: "Fast", description: "Prefer the shortest path" },
-                  { label: "Careful", description: "Add more verification" },
-                ],
-                allowOther: true,
-              },
-            ],
-          },
-        }],
+        composer: {
+          interactions: [{
+            id: "question_demo",
+            kind: "question",
+            blocking: true,
+            requester: "echo",
+            question: {
+              questions: [
+                {
+                  id: "approach",
+                  header: "Approach",
+                  question: "How should the demo proceed?",
+                  options: [
+                    { label: "Fast", description: "Prefer the shortest path" },
+                    { label: "Careful", description: "Add more verification" },
+                  ],
+                  allowOther: true,
+                },
+              ],
+            },
+          }],
+        },
       });
     }
   }
 
   cancel(): void {
-    if (!this.view.busy) return;
+    if (!this.stateStore.getState("composer").busy) return;
     this.stopStreaming();
     for (const item of this.items) {
       if (item.type === "block" && item.status === "in_progress") item.status = "failed";
     }
-    this.patch({ busy: false, runStatus: this.agentStatus(), toast: { text: "Interrupted", tone: "info" } });
+    this.patch({
+      timeline: {},
+      composer: { busy: false },
+      activity: { items: this.agentStatus() },
+      footer: { toast: { text: "Interrupted", tone: "info" } },
+    });
   }
 
   exit(): void {
@@ -283,10 +331,17 @@ class EchoHarness implements ChatProtocol {
 
   resolvePicker(_id: string, value: string | null): void {
     if (value) this.model = value;
+    const busy = this.stateStore.getState("composer").busy;
     this.patch({
-      picker: null,
-      runStatus: this.view.busy ? this.view.runStatus : this.agentStatus(),
-      toast: value ? { text: `Model set to ${value}`, tone: "info" } : null,
+      composer: { picker: null },
+      activity: {
+        items: busy
+          ? this.stateStore.getState("activity").items
+          : this.agentStatus(),
+      },
+      footer: {
+        toast: value ? { text: `Model set to ${value}`, tone: "info" } : null,
+      },
     });
   }
 
@@ -294,8 +349,13 @@ class EchoHarness implements ChatProtocol {
 
   resolveInteraction(_id: string, response: InteractionResponse): void {
     this.patch({
-      interactions: [],
-      toast: { text: `Interaction answered: ${JSON.stringify(response)}`, tone: "info" },
+      composer: { interactions: [] },
+      footer: {
+        toast: {
+          text: `Interaction answered: ${JSON.stringify(response)}`,
+          tone: "info",
+        },
+      },
     });
   }
 

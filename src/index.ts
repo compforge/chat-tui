@@ -4,9 +4,12 @@
 
 export * from "./types/index.ts";
 export * from "./protocol/index.ts";
-export * from "./protocol/surfaces.ts";
-export * from "./protocol/view.ts";
-export { useSurface, type Surface } from "./surface.ts";
+export * from "./protocol/state.ts";
+export {
+  useStoreSelector,
+  useStoreState,
+  type Store,
+} from "./state.ts";
 export * from "./utils/text.ts";
 export * from "./utils/time.ts";
 export * from "./components/clip.ts";

@@ -1,23 +1,29 @@
+import { useTerminalDimensions } from "@opentui/react";
 import { memo, type ReactNode } from "react";
 
 import {
   Sidecar,
-  type SidecarLayout,
+  sidecarLayout,
 } from "../../components/sidecar.tsx";
-import type { SidecarView, Theme } from "../../types/index.ts";
+import type { ChatStore } from "../../protocol/state.ts";
+import { useStoreState } from "../../state.ts";
+import type { Theme } from "../../types/index.ts";
 
 export interface SidecarSurfaceProps {
-  view: SidecarView | undefined;
-  layout: SidecarLayout;
+  store: ChatStore;
   theme: Theme;
 }
 
 export const SidecarSurface = memo(function SidecarSurface(
   props: SidecarSurfaceProps,
 ): ReactNode {
-  if (!props.view || props.layout === "hidden") return null;
-  if (props.layout === "inline") {
-    return <Sidecar view={props.view} theme={props.theme} />;
+  const terminal = useTerminalDimensions();
+  const view = useStoreState(props.store, "sidecar");
+  const layout = sidecarLayout(view, terminal.width);
+
+  if (!view || layout === "hidden") return null;
+  if (layout === "inline") {
+    return <Sidecar view={view} theme={props.theme} />;
   }
   return (
     <box
@@ -29,7 +35,7 @@ export const SidecarSurface = memo(function SidecarSurface(
         zIndex: 300,
       }}
     >
-      <Sidecar view={props.view} theme={props.theme} overlay />
+      <Sidecar view={view} theme={props.theme} overlay />
     </box>
   );
 });

@@ -5,9 +5,12 @@ import { createRoot, type Root } from "@opentui/react";
 import { createElement } from "react";
 
 import { ChatShell } from "../src/chat/shell.tsx";
-import type { ChatProtocol, ChatViewState } from "../src/protocol/index.ts";
-import { createChatSurfaceStore } from "../src/protocol/surfaces.ts";
-import { chatSurfaceStateFromView } from "../src/protocol/view.ts";
+import type { ChatProtocol } from "../src/protocol/index.ts";
+import {
+  createChatStore,
+  type ChatState,
+  type ChatStore,
+} from "../src/protocol/state.ts";
 import type { InteractionResponse } from "../src/types/index.ts";
 
 let mounted: { root: Root; setup: TestRendererSetup } | null = null;
@@ -18,18 +21,18 @@ afterEach(() => {
   mounted = null;
 });
 
-function testProtocol(initial: ChatViewState) {
-  let view = initial;
-  let listener: (() => void) | undefined;
+function testProtocol(initial: Partial<ChatState> = {}) {
   const responses: Array<{ id: string; response: InteractionResponse }> = [];
+  const stateStore = createChatStore({
+    timeline: { items: [] },
+    composer: {},
+    activity: {},
+    footer: {},
+    sidecar: undefined,
+    ...initial,
+  });
   const protocol: ChatProtocol = {
-    getView: () => view,
-    subscribe(onChange) {
-      listener = onChange;
-      return () => {
-        listener = undefined;
-      };
-    },
+    stateStore,
     submit: () => {},
     command: () => {},
     cancel: () => {},
@@ -40,7 +43,7 @@ function testProtocol(initial: ChatViewState) {
       responses.push({ id, response });
     },
   };
-  return { protocol, responses };
+  return { protocol, responses, stateStore };
 }
 
 async function mount(protocol: ChatProtocol) {
@@ -64,23 +67,53 @@ async function mount(protocol: ChatProtocol) {
 
 describe("InteractionDock", () => {
   test("preserves the active composer while the sidecar updates", async () => {
-    const harness = testProtocol({ transcript: [] });
-    const runtime = createChatSurfaceStore(
-      chatSurfaceStateFromView(harness.protocol.getView()),
-    );
-    harness.protocol.surfaces = runtime;
+    const harness = testProtocol({
+      sidecar: {
+        title: "Board",
+        mode: "open",
+        sections: [{
+          id: "active",
+          items: [{ id: "task", title: "Reconcile" }],
+        }],
+      },
+    });
+    const runtime = harness.stateStore;
+    let composerReads = 0;
+    harness.protocol.stateStore = new Proxy(runtime, {
+      get(target, property, receiver) {
+        if (property !== "getState") {
+          return Reflect.get(target, property, receiver);
+        }
+        return (key: keyof ChatState) => {
+          if (key === "composer") composerReads += 1;
+          return target.getState(key);
+        };
+      },
+    }) as ChatStore;
     const { setup, composer } = await mount(harness.protocol);
 
     for (const key of "draft") setup.mockInput.pressKey(key);
     await setup.waitFor(() => composer.plainText === "draft");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await setup.flush();
+    composerReads = 0;
 
-    runtime.commit({
-      sidecar: {
-        title: "Board",
-        mode: "open",
-        sections: [{ id: "active", items: [{ id: "task", title: "Reconcile" }] }],
-      },
-    });
+    for (let index = 0; index < 100; index++) {
+      runtime.commit({
+        sidecar: {
+          title: "Board",
+          mode: "open",
+          sections: [{
+            id: "active",
+            items: [{
+              id: "task",
+              title: "Reconcile",
+              detail: `revision ${index}`,
+            }],
+          }],
+        },
+      });
+    }
     await setup.flush();
 
     const currentComposer = [...Renderable.renderablesByNumber.values()].find(
@@ -89,19 +122,21 @@ describe("InteractionDock", () => {
     );
     expect(currentComposer).toBe(composer);
     expect(currentComposer?.plainText).toBe("draft");
+    expect(composerReads).toBe(0);
   });
 
   test("shows a suggested input without overwriting the composer", async () => {
     const harness = testProtocol({
-      transcript: [],
-      interactions: [{
-        id: "proposal_1",
-        kind: "suggested_input",
-        blocking: false,
-        requester: "turn-coach",
-        title: "Suggested follow-up",
-        text: "Review the previous turn",
-      }],
+      composer: {
+        interactions: [{
+          id: "proposal_1",
+          kind: "suggested_input",
+          blocking: false,
+          requester: "turn-coach",
+          title: "Suggested follow-up",
+          text: "Review the previous turn",
+        }],
+      },
     });
     const { setup, composer } = await mount(harness.protocol);
 
@@ -112,14 +147,15 @@ describe("InteractionDock", () => {
 
   test("uses a suggestion explicitly and resolves it only after submit", async () => {
     const harness = testProtocol({
-      transcript: [],
-      interactions: [{
-        id: "proposal_2",
-        kind: "suggested_input",
-        blocking: false,
-        title: "Suggested follow-up",
-        text: "Check material risks",
-      }],
+      composer: {
+        interactions: [{
+          id: "proposal_2",
+          kind: "suggested_input",
+          blocking: false,
+          title: "Suggested follow-up",
+          text: "Check material risks",
+        }],
+      },
     });
     const { setup, composer } = await mount(harness.protocol);
 
@@ -142,14 +178,15 @@ describe("InteractionDock", () => {
 
   test("dismisses a visible non-blocking suggestion with Ctrl+C", async () => {
     const harness = testProtocol({
-      transcript: [],
-      interactions: [{
-        id: "proposal_3",
-        kind: "suggested_input",
-        blocking: false,
-        title: "Suggested follow-up",
-        text: "Check material risks",
-      }],
+      composer: {
+        interactions: [{
+          id: "proposal_3",
+          kind: "suggested_input",
+          blocking: false,
+          title: "Suggested follow-up",
+          text: "Check material risks",
+        }],
+      },
     });
     const { setup } = await mount(harness.protocol);
 
