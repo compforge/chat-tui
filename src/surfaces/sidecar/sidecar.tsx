@@ -1,4 +1,10 @@
-import { Fragment, type ReactNode } from "react";
+import type { TextRenderable } from "@opentui/core";
+import {
+  Fragment,
+  useEffect,
+  useRef,
+  type ReactNode,
+} from "react";
 
 import type {
   SidecarItemTone,
@@ -29,6 +35,46 @@ export interface SidecarProps {
   state: SidecarState;
   theme: Theme;
   overlay?: boolean;
+}
+
+function MarqueeDetail(props: { text: string; color: string }): ReactNode {
+  const textRef = useRef<TextRenderable | null>(null);
+  useEffect(() => {
+    let direction = 1;
+    let pauseTicks = 0;
+    const timer = setInterval(() => {
+      const text = textRef.current;
+      if (!text || text.maxScrollX <= 0) return;
+      if (pauseTicks > 0) {
+        pauseTicks -= 1;
+        return;
+      }
+      const next = text.scrollX + direction;
+      if (next >= text.maxScrollX) {
+        text.scrollX = text.maxScrollX;
+        direction = -1;
+        pauseTicks = 4;
+      } else if (next <= 0) {
+        text.scrollX = 0;
+        direction = 1;
+        pauseTicks = 4;
+      } else {
+        text.scrollX = next;
+      }
+    }, 200);
+    return () => clearInterval(timer);
+  }, [props.text]);
+
+  return (
+    <text
+      ref={textRef}
+      fg={props.color}
+      wrapMode="none"
+      style={{ width: "100%", height: 1, overflow: "hidden" }}
+    >
+      {props.text}
+    </text>
+  );
 }
 
 /** 只渲染接入方提供的展示快照，不解释条目背后的 agent 或业务语义。 */
@@ -71,7 +117,7 @@ export function Sidecar(props: SidecarProps): ReactNode {
               <box key={item.id} style={{ flexDirection: "column", flexShrink: 0 }}>
                 <box style={{ flexDirection: "row", justifyContent: "space-between", gap: 1 }}>
                   <text fg={props.theme.user} wrapMode="word">
-                    {item.title}
+                    {item.url ? <a href={item.url}>{item.title}</a> : item.title}
                   </text>
                   {item.status ? (
                     <text fg={toneColor(item.tone, props.theme)} style={{ flexShrink: 0 }}>
@@ -80,9 +126,13 @@ export function Sidecar(props: SidecarProps): ReactNode {
                   ) : null}
                 </box>
                 {item.detail ? (
-                  <text fg={props.theme.dim} wrapMode="word">
-                    {item.detail}
-                  </text>
+                  item.detailOverflow === "marquee" ? (
+                    <MarqueeDetail text={item.detail} color={props.theme.dim} />
+                  ) : (
+                    <text fg={props.theme.dim} wrapMode="word">
+                      {item.detail}
+                    </text>
+                  )
                 ) : null}
               </box>
             ))}

@@ -8,8 +8,12 @@ export type SidecarItemTone =
 export interface SidecarItem {
   id: string;
   title: string;
+  /** Rendered as a terminal-native hyperlink when present. */
+  url?: string;
   status?: string;
   detail?: string;
+  /** Defaults to wrapping; marquee scrolls only when the detail overflows. */
+  detailOverflow?: "wrap" | "marquee";
   tone?: SidecarItemTone;
 }
 
