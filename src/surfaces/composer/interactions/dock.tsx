@@ -82,8 +82,8 @@ interface SuggestedInputCardProps {
 function SuggestedInputCard(props: SuggestedInputCardProps): ReactNode {
   const theme = props.theme ?? defaultTheme;
   const terminal = useTerminalDimensions();
-  const width = Math.max(20, Math.min(76, terminal.width - 4));
-  const height = Math.max(5, Math.min(10, terminal.height - props.anchorBottom - 1));
+  const width = Math.max(28, Math.min(112, terminal.width - 4));
+  const height = Math.max(8, Math.min(18, terminal.height - props.anchorBottom - 1));
   const hint = props.canUse
     ? "Ctrl+Y use in composer · Ctrl+C dismiss"
     : "Clear the composer to use · Ctrl+C clears draft";
