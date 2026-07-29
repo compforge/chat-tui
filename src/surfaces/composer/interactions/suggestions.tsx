@@ -31,7 +31,7 @@ export function Suggestions(props: SuggestionsProps): ReactNode {
         position: "absolute",
         left: 2,
         bottom: props.anchorBottom,
-        width: 60,
+        width: 80,
         height: props.candidates.length + groupHeadings + 2,
         backgroundColor:
           theme.overlayBackground ?? defaultTheme.overlayBackground,
