@@ -11,6 +11,7 @@ import type {
   SidecarState,
 } from "../../state/sidecar.ts";
 import type { Theme } from "../../theme.ts";
+import { displayWidth } from "../../terminal/text.ts";
 import {
   SIDECAR_WIDTH,
   visibleSidecarSections,
@@ -37,33 +38,38 @@ export interface SidecarProps {
   overlay?: boolean;
 }
 
+const MARQUEE_GAP = "   ";
+
+// Repeat the text after a blank gap so the viewport can keep moving forward
+// and wrap to the first copy without visibly reversing direction.
+export function marqueeContent(text: string): {
+  readonly text: string;
+  readonly cycleWidth: number;
+} {
+  return {
+    text: `${text}${MARQUEE_GAP}${text}`,
+    cycleWidth: displayWidth(text) + displayWidth(MARQUEE_GAP),
+  };
+}
+
+export function nextMarqueeOffset(
+  current: number,
+  cycleWidth: number,
+): number {
+  return current + 1 >= cycleWidth ? 0 : current + 1;
+}
+
 function MarqueeDetail(props: { text: string; color: string }): ReactNode {
   const textRef = useRef<TextRenderable | null>(null);
+  const marquee = marqueeContent(props.text);
   useEffect(() => {
-    let direction = 1;
-    let pauseTicks = 0;
     const timer = setInterval(() => {
       const text = textRef.current;
-      if (!text || text.maxScrollX <= 0) return;
-      if (pauseTicks > 0) {
-        pauseTicks -= 1;
-        return;
-      }
-      const next = text.scrollX + direction;
-      if (next >= text.maxScrollX) {
-        text.scrollX = text.maxScrollX;
-        direction = -1;
-        pauseTicks = 4;
-      } else if (next <= 0) {
-        text.scrollX = 0;
-        direction = 1;
-        pauseTicks = 4;
-      } else {
-        text.scrollX = next;
-      }
+      if (!text || displayWidth(props.text) <= text.width) return;
+      text.scrollX = nextMarqueeOffset(text.scrollX, marquee.cycleWidth);
     }, 200);
     return () => clearInterval(timer);
-  }, [props.text]);
+  }, [marquee.cycleWidth, props.text]);
 
   return (
     <text
@@ -72,7 +78,7 @@ function MarqueeDetail(props: { text: string; color: string }): ReactNode {
       wrapMode="none"
       style={{ width: "100%", height: 1, overflow: "hidden" }}
     >
-      {props.text}
+      {marquee.text}
     </text>
   );
 }

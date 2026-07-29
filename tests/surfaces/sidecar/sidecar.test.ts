@@ -15,6 +15,10 @@ import {
   visibleSidecarSections,
   type SidecarState,
 } from "../../../src/index.ts";
+import {
+  marqueeContent,
+  nextMarqueeOffset,
+} from "../../../src/surfaces/sidecar/sidecar.tsx";
 
 let mounted: { root: Root; setup: TestRendererSetup } | null = null;
 
@@ -37,6 +41,20 @@ const populated: SidecarState = {
 };
 
 describe("sidecar", () => {
+  test("loops overflowing details through a blank gap", () => {
+    const marquee = marqueeContent("abcde");
+    expect(marquee).toEqual({
+      text: "abcde   abcde",
+      cycleWidth: 8,
+    });
+
+    const offsets = [0];
+    for (let index = 0; index < marquee.cycleWidth; index += 1) {
+      offsets.push(nextMarqueeOffset(offsets.at(-1)!, marquee.cycleWidth));
+    }
+    expect(offsets).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 0]);
+  });
+
   test("hides when every section is empty", () => {
     const empty: SidecarState = {
       title: "Board",
@@ -132,11 +150,15 @@ describe("sidecar", () => {
     const details = [...Renderable.renderablesByNumber.values()].filter(
       (renderable): renderable is TextRenderable =>
         renderable instanceof TextRenderable &&
-        (renderable.plainText === "Short title" ||
-          renderable.plainText === longTitle),
+        (renderable.plainText === marqueeContent("Short title").text ||
+          renderable.plainText === marqueeContent(longTitle).text),
     );
-    const short = details.find((detail) => detail.plainText === "Short title");
-    const long = details.find((detail) => detail.plainText === longTitle);
+    const short = details.find((detail) =>
+      detail.plainText === marqueeContent("Short title").text
+    );
+    const long = details.find((detail) =>
+      detail.plainText === marqueeContent(longTitle).text
+    );
     expect(short?.maxScrollX).toBe(0);
     expect(long?.maxScrollX).toBeGreaterThan(0);
 
