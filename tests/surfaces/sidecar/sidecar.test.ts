@@ -96,7 +96,7 @@ describe("sidecar", () => {
     }));
   });
 
-  test("scrolls marquee details only when they overflow", async () => {
+  test("scrolls details only when they overflow", async () => {
     const setup = await createTestRenderer({ width: 42, height: 10, screenMode: "main-screen" });
     const root = createRoot(setup.renderer);
     mounted = { root, setup };
@@ -114,13 +114,11 @@ describe("sidecar", () => {
                 id: "pr-short",
                 title: "PR #1",
                 detail: "Short title",
-                detailOverflow: "marquee",
               },
               {
                 id: "pr-long",
                 title: "PR #2",
                 detail: longTitle,
-                detailOverflow: "marquee",
               },
             ],
           }],

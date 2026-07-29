@@ -126,13 +126,7 @@ export function Sidecar(props: SidecarProps): ReactNode {
                   ) : null}
                 </box>
                 {item.detail ? (
-                  item.detailOverflow === "marquee" ? (
-                    <MarqueeDetail text={item.detail} color={props.theme.dim} />
-                  ) : (
-                    <text fg={props.theme.dim} wrapMode="word">
-                      {item.detail}
-                    </text>
-                  )
+                  <MarqueeDetail text={item.detail} color={props.theme.dim} />
                 ) : null}
               </box>
             ))}
