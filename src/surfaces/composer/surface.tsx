@@ -103,6 +103,8 @@ export const ComposerSurface = memo(function ComposerSurface(
   const activeInteraction = visibleInteractions[0] ?? null;
   const blockingInteraction =
     activeInteraction?.kind === "approval" || activeInteraction?.kind === "question";
+  const choosingSuggestedInput =
+    activeInteraction?.kind === "suggested_input" && !draft;
   const picker = composerView.picker ?? null;
   const searchPicker = useCallback(
     (id: string, query: string) => protocol.searchPicker(id, query),
@@ -118,7 +120,9 @@ export const ComposerSurface = memo(function ComposerSurface(
   // 焦点安全网：浮层都关闭时确保焦点回到输入框。focused prop 只在值变化时生效，
   // 覆盖不到"焦点被别处拿走但 prop 没变"的场景；focus() 对已聚焦者是 no-op，代价可忽略。
   useEffect(() => {
-    if (!blockingInteraction && !picker) composer.current?.focus();
+    if (!blockingInteraction && !choosingSuggestedInput && !picker) {
+      composer.current?.focus();
+    }
   });
 
   useEffect(() => {
@@ -360,7 +364,7 @@ export const ComposerSurface = memo(function ComposerSurface(
           <ComposerEditor
             ref={composer}
             placeholder={composerView.placeholder}
-            focused={!blockingInteraction && !picker}
+            focused={!blockingInteraction && !choosingSuggestedInput && !picker}
             busy={busy}
             theme={theme}
             onChange={handleComposerChange}
@@ -389,6 +393,7 @@ export const ComposerSurface = memo(function ComposerSurface(
         anchorBottom={dockBottom}
         canUseSuggestedInput={!draft}
         theme={theme}
+        onUseSuggestedInput={useSuggestedInput}
         onResolve={(id, response) => void protocol.resolveInteraction(id, response)}
       />
     </>

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import {
   BoxRenderable,
   Renderable,
+  SelectRenderable,
   TextareaRenderable,
 } from "@opentui/core";
 import { createTestRenderer, type TestRendererSetup } from "@opentui/core/testing";
@@ -166,6 +167,39 @@ describe("InteractionDock", () => {
     expect(suggestion?.height).toBe(18);
     expect(setup.captureCharFrame()).toContain("Needs your attention");
     expect(setup.captureCharFrame()).toContain("Review the previous turn");
+    expect(setup.captureCharFrame()).toContain("Use in composer  (Ctrl+Y)");
+    expect(setup.captureCharFrame()).toContain("Dismiss  (Ctrl+C)");
+  });
+
+  test("chooses a visible suggestion action with arrow keys and Enter", async () => {
+    const harness = testProtocol({
+      composer: {
+        interactions: [{
+          id: "proposal_options",
+          kind: "suggested_input",
+          blocking: false,
+          title: "Suggested follow-up",
+          text: "Check material risks",
+        }],
+      },
+    });
+    const { setup } = await mount(harness.protocol);
+    const select = [...Renderable.renderablesByNumber.values()].find(
+      (renderable): renderable is SelectRenderable =>
+        renderable instanceof SelectRenderable,
+    );
+    expect(select?.focused).toBe(true);
+
+    setup.mockInput.pressArrow("down");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await setup.flush();
+    expect(select?.getSelectedIndex()).toBe(1);
+    setup.mockInput.pressEnter();
+    await setup.waitFor(() => harness.responses.length === 1);
+    expect(harness.responses).toEqual([{
+      id: "proposal_options",
+      response: { kind: "suggested_input", outcome: "dismissed" },
+    }]);
   });
 
   test("uses a suggestion explicitly and resolves it only after submit", async () => {

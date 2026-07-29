@@ -14,6 +14,9 @@ export interface InteractionDockProps {
   anchorBottom: number;
   canUseSuggestedInput: boolean;
   theme?: Theme;
+  onUseSuggestedInput: (
+    interaction: Extract<InteractionView, { kind: "suggested_input" }>,
+  ) => void;
   onResolve: (id: string, response: InteractionResponse) => void;
 }
 
@@ -67,6 +70,13 @@ export function InteractionDock(props: InteractionDockProps): ReactNode {
       anchorBottom={props.anchorBottom}
       canUse={props.canUseSuggestedInput}
       theme={props.theme}
+      onUse={() => props.onUseSuggestedInput(interaction)}
+      onDismiss={() =>
+        props.onResolve(interaction.id, {
+          kind: "suggested_input",
+          outcome: "dismissed",
+        })
+      }
     />
   );
 }
@@ -77,6 +87,12 @@ interface SuggestedInputCardProps {
   anchorBottom: number;
   canUse: boolean;
   theme?: Theme;
+  onUse: () => void;
+  onDismiss: () => void;
+}
+
+interface SuggestedInputOption {
+  value?: unknown;
 }
 
 function SuggestedInputCard(props: SuggestedInputCardProps): ReactNode {
@@ -84,9 +100,6 @@ function SuggestedInputCard(props: SuggestedInputCardProps): ReactNode {
   const terminal = useTerminalDimensions();
   const width = Math.max(28, Math.min(112, terminal.width - 4));
   const height = Math.max(8, Math.min(18, terminal.height - props.anchorBottom - 1));
-  const hint = props.canUse
-    ? "Ctrl+Y use in composer · Ctrl+C dismiss"
-    : "Clear the composer to use · Ctrl+C clears draft";
 
   return (
     <box
@@ -111,7 +124,29 @@ function SuggestedInputCard(props: SuggestedInputCardProps): ReactNode {
       <scrollbox style={{ flexGrow: 1 }} focused={false}>
         <text selectable>{props.interaction.text}</text>
       </scrollbox>
-      <text fg={theme.dim}>{hint}</text>
+      {props.canUse ? (
+        <select
+          focused
+          showDescription={false}
+          style={{ height: 2, flexShrink: 0 }}
+          options={[
+            {
+              name: "Use in composer  (Ctrl+Y)",
+              description: "",
+              value: "use",
+            },
+            { name: "Dismiss  (Ctrl+C)", description: "", value: "dismiss" },
+          ]}
+          onSelect={(_index: number, option: SuggestedInputOption | null) => {
+            if (option?.value === "use") props.onUse();
+            else if (option?.value === "dismiss") props.onDismiss();
+          }}
+        />
+      ) : (
+        <text fg={theme.dim}>
+          Clear the composer to choose an action · Ctrl+C clears draft
+        </text>
+      )}
     </box>
   );
 }
