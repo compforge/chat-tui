@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { Renderable, TextareaRenderable } from "@opentui/core";
+import {
+  BoxRenderable,
+  Renderable,
+  TextareaRenderable,
+} from "@opentui/core";
 import { createTestRenderer, type TestRendererSetup } from "@opentui/core/testing";
 import { createRoot, type Root } from "@opentui/react";
 import { createElement } from "react";
@@ -46,10 +50,16 @@ function testProtocol(initial: Partial<ChatState> = {}) {
   return { protocol, responses, stateStore };
 }
 
-async function mount(protocol: ChatProtocol) {
-  const setup = await createTestRenderer({
+async function mount(
+  protocol: ChatProtocol,
+  dimensions: { width: number; height: number } = {
     width: 90,
     height: 14,
+  },
+) {
+  const setup = await createTestRenderer({
+    width: dimensions.width,
+    height: dimensions.height,
     screenMode: "main-screen",
   });
   const root = createRoot(setup.renderer);
@@ -141,9 +151,19 @@ describe("InteractionDock", () => {
         }],
       },
     });
-    const { setup, composer } = await mount(harness.protocol);
+    const { setup, composer } = await mount(harness.protocol, {
+      width: 120,
+      height: 32,
+    });
+    const suggestion = [...Renderable.renderablesByNumber.values()].find(
+      (renderable): renderable is BoxRenderable =>
+        renderable instanceof BoxRenderable &&
+        renderable.title === "Needs your attention",
+    );
 
     expect(composer.plainText).toBe("");
+    expect(suggestion?.width).toBe(112);
+    expect(suggestion?.height).toBe(18);
     expect(setup.captureCharFrame()).toContain("Needs your attention");
     expect(setup.captureCharFrame()).toContain("Review the previous turn");
   });
