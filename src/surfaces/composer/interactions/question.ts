@@ -27,7 +27,8 @@ export function questionCardLayout(input: QuestionCardLayoutInput): QuestionCard
   const width = overlayCardWidth({ terminalWidth: input.terminalWidth, minWidth: 24, maxWidth: 76 });
   const descWidth = Math.max(8, width - 6); // 减边框与选择指示符缩进
   const detailAll = input.focusedDescription ? wrapLine(input.focusedDescription, descWidth) : [];
-  const detail = clipDetail(detailAll, DETAIL_MAX_ROWS);
+  // 单行 description 已在选项内完整展示，无需重复占用详情区并挤压后续选项。
+  const detail = clipDetail(detailAll.length > 1 ? detailAll : [], DETAIL_MAX_ROWS);
   const budget = overlayCardHeight({
     terminalHeight: input.terminalHeight,
     reservedRows: 6, // 固定给输入区/状态行留出的空间（不随 anchorBottom 走）

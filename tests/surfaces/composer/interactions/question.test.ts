@@ -61,6 +61,39 @@ describe("question card layout", () => {
     expect(layout.height).toBe(9); // 3 项 × 2 行 + 边框 2 + 问题行 1
   });
 
+  test("keeps every option visible when the focused description already fits inline", async () => {
+    const setup = await createTestRenderer({ width: 120, height: 30, screenMode: "main-screen" });
+    const root = createRoot(setup.renderer);
+    mounted = { root, setup };
+    root.render(
+      createElement(QuestionCard, {
+        requestId: "req-1",
+        question: {
+          questions: [
+            {
+              id: "q1",
+              header: "Requirement",
+              question: "Which Requirement should compforge/reqloop PR/MR 48 join?",
+              options: [
+                { label: "Trace analysis", description: "llmops · story · 7282882268" },
+                { label: "Keep standalone", description: "" },
+              ],
+            },
+          ],
+        },
+        anchorBottom: 4,
+        onSubmit: () => {},
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await setup.flush();
+
+    const frame = setup.captureCharFrame();
+    expect(frame).toContain("Trace analysis");
+    expect(frame).toContain("Keep standalone");
+    expect(frame.match(/llmops · story · 7282882268/g)).toHaveLength(1);
+  });
+
   test("renders the truncation trace for a long focused description", async () => {
     const setup = await createTestRenderer({ width: 80, height: 40, screenMode: "main-screen" });
     const root = createRoot(setup.renderer);
