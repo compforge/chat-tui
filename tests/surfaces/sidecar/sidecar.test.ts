@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { Renderable, ScrollBoxRenderable } from "@opentui/core";
+import {
+  Renderable,
+  ScrollBoxRenderable,
+  TextRenderable,
+} from "@opentui/core";
 import { createTestRenderer, type TestRendererSetup } from "@opentui/core/testing";
 import { createRoot, type Root } from "@opentui/react";
 import { createElement } from "react";
@@ -55,6 +59,92 @@ describe("sidecar", () => {
 
   test("explicit hidden mode wins on wide terminals", () => {
     expect(sidecarLayout({ ...populated, mode: "hidden" }, 160)).toBe("hidden");
+  });
+
+  test("renders item URLs as terminal-native hyperlinks", async () => {
+    const setup = await createTestRenderer({ width: 42, height: 8, screenMode: "main-screen" });
+    const root = createRoot(setup.renderer);
+    mounted = { root, setup };
+
+    root.render(
+      createElement(Sidecar, {
+        state: {
+          title: "Board",
+          sections: [{
+            id: "pull-requests",
+            items: [{
+              id: "pr-42",
+              title: "Pull request #42",
+              url: "https://example.com/pulls/42",
+            }],
+          }],
+        },
+        theme: defaultTheme,
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await setup.flush();
+
+    const title = [...Renderable.renderablesByNumber.values()].find(
+      (renderable): renderable is TextRenderable =>
+        renderable instanceof TextRenderable &&
+        renderable.plainText === "Pull request #42",
+    );
+    expect(title?.textNode.toChunks()).toContainEqual(expect.objectContaining({
+      text: "Pull request #42",
+      link: { url: "https://example.com/pulls/42" },
+    }));
+  });
+
+  test("scrolls marquee details only when they overflow", async () => {
+    const setup = await createTestRenderer({ width: 42, height: 10, screenMode: "main-screen" });
+    const root = createRoot(setup.renderer);
+    mounted = { root, setup };
+    const longTitle =
+      "A long pull request title that cannot fit inside the Board sidecar";
+
+    root.render(
+      createElement(Sidecar, {
+        state: {
+          title: "Board",
+          sections: [{
+            id: "pull-requests",
+            items: [
+              {
+                id: "pr-short",
+                title: "PR #1",
+                detail: "Short title",
+                detailOverflow: "marquee",
+              },
+              {
+                id: "pr-long",
+                title: "PR #2",
+                detail: longTitle,
+                detailOverflow: "marquee",
+              },
+            ],
+          }],
+        },
+        theme: defaultTheme,
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await setup.flush();
+
+    const details = [...Renderable.renderablesByNumber.values()].filter(
+      (renderable): renderable is TextRenderable =>
+        renderable instanceof TextRenderable &&
+        (renderable.plainText === "Short title" ||
+          renderable.plainText === longTitle),
+    );
+    const short = details.find((detail) => detail.plainText === "Short title");
+    const long = details.find((detail) => detail.plainText === longTitle);
+    expect(short?.maxScrollX).toBe(0);
+    expect(long?.maxScrollX).toBeGreaterThan(0);
+
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    expect(short?.scrollX).toBe(0);
+    expect(long?.scrollX).toBeGreaterThan(0);
   });
 
   test("exposes every row directly to scrollbox viewport culling", async () => {
