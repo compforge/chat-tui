@@ -18,7 +18,7 @@ import {
 import {
   marqueeContent,
   nextMarqueeOffset,
-} from "../../../src/surfaces/sidecar/sidecar.tsx";
+} from "../../../src/terminal/marquee.tsx";
 
 let mounted: { root: Root; setup: TestRendererSetup } | null = null;
 
@@ -150,11 +150,11 @@ describe("sidecar", () => {
     const details = [...Renderable.renderablesByNumber.values()].filter(
       (renderable): renderable is TextRenderable =>
         renderable instanceof TextRenderable &&
-        (renderable.plainText === marqueeContent("Short title").text ||
+        (renderable.plainText === "Short title" ||
           renderable.plainText === marqueeContent(longTitle).text),
     );
     const short = details.find((detail) =>
-      detail.plainText === marqueeContent("Short title").text
+      detail.plainText === "Short title"
     );
     const long = details.find((detail) =>
       detail.plainText === marqueeContent(longTitle).text
