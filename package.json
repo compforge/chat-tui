@@ -1,6 +1,6 @@
 {
   "name": "chat-tui",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Chat/agent UI components for the terminal, built on opentui — view models in, intents out.",
   "type": "module",
   "license": "Apache-2.0",

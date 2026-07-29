@@ -12,8 +12,6 @@ export interface SidecarItem {
   url?: string;
   status?: string;
   detail?: string;
-  /** Defaults to wrapping; marquee scrolls only when the detail overflows. */
-  detailOverflow?: "wrap" | "marquee";
   tone?: SidecarItemTone;
 }
 
