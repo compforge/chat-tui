@@ -1,5 +1,6 @@
-import { useTerminalDimensions } from "@opentui/react";
-import type { ReactNode } from "react";
+import type { SelectRenderable } from "@opentui/core";
+import { useKeyboard, useTerminalDimensions } from "@opentui/react";
+import { useRef, type ReactNode } from "react";
 
 import type { ApprovalView } from "../../../state/composer.ts";
 import { defaultTheme, type Theme } from "../../../theme.ts";
@@ -23,6 +24,7 @@ export interface ApprovalCardProps {
 export function ApprovalCard(props: ApprovalCardProps): ReactNode {
   const theme = props.theme ?? defaultTheme;
   const terminal = useTerminalDimensions();
+  const actions = useRef<SelectRenderable | null>(null);
   const detail = props.approval.description
     ? `${props.approval.title}\n${props.approval.description}`
     : props.approval.title;
@@ -33,6 +35,24 @@ export function ApprovalCard(props: ApprovalCardProps): ReactNode {
     detail,
     optionCount: props.approval.options.length,
   });
+  useKeyboard((key) => {
+    if (!actions.current) return;
+    if (key.name === "up" || key.name === "down") {
+      key.preventDefault();
+      if (key.name === "up") actions.current.moveUp();
+      else actions.current.moveDown();
+      return;
+    }
+    if (
+      key.name === "return" ||
+      key.name === "linefeed" ||
+      key.name === "kpenter"
+    ) {
+      key.preventDefault();
+      actions.current.selectCurrent();
+    }
+  });
+
   return (
     <box
       title={props.frameTitle ?? "Approval required"}
@@ -64,6 +84,7 @@ export function ApprovalCard(props: ApprovalCardProps): ReactNode {
       </scrollbox>
       {props.approval.options.length > 0 ? (
         <select
+          ref={actions}
           focused
           showDescription={false}
           showScrollIndicator={

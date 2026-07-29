@@ -53,8 +53,13 @@ describe("approval card", () => {
     expect(select?.height).toBe(OPTIONS.length);
     expect(setup.captureCharFrame()).toContain("Allow once");
 
+    // The approval is a blocking modal, so its actions remain keyboard-operable
+    // even if the terminal/window transition cleared OpenTUI's renderable focus.
+    select?.blur();
+    setup.mockInput.pressArrow("down");
+    expect(select?.getSelectedIndex()).toBe(1);
     setup.mockInput.pressEnter();
-    expect(selected).toBe("accept");
+    expect(selected).toBe("acceptForSession");
   });
 
   test("keeps at least one detail and action row on a short terminal", () => {
