@@ -227,19 +227,14 @@ export const ComposerSurface = memo(function ComposerSurface(
       !picker
     ) {
       key.preventDefault();
-      try {
-        void Promise.resolve(protocol.cycleMode()).catch((error) => {
+      void Promise.resolve()
+        .then(() => protocol.cycleMode?.())
+        .catch((error) => {
           setLocalToast({
             text: error instanceof Error ? error.message : String(error),
             tone: "error",
           });
         });
-      } catch (error) {
-        setLocalToast({
-          text: error instanceof Error ? error.message : String(error),
-          tone: "error",
-        });
-      }
       return;
     }
     if (key.name === "escape") {
