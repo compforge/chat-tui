@@ -22,6 +22,8 @@ export interface ChatProtocol {
   command(name: string, argument: string): void | Promise<void>;
   /** 打断当前 turn（Esc） */
   cancel(): void;
+  /** 切换到下一个接入方定义的工作模式（Shift+Tab）；未实现时保留普通按键行为。 */
+  cycleMode?(): void | Promise<void>;
   /** 优雅退出（/exit、双击 Ctrl+C、Ctrl+D）；进程退出由接入方决定 */
   exit(): void | Promise<void>;
   /** picker 选择结果；用户 Esc 关闭时 value 为 null */
