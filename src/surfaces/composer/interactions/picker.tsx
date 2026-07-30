@@ -1,8 +1,24 @@
 import { useTerminalDimensions } from "@opentui/react";
-import type { ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 
 import type { PickerView } from "../../../state/composer.ts";
+import {
+  MARQUEE_INTERVAL_MS,
+  marqueeContent,
+  marqueeFrame,
+  nextMarqueeOffset,
+} from "../../../terminal/marquee.tsx";
+import { displayWidth } from "../../../terminal/text.ts";
 import { defaultTheme, type Theme } from "../../../theme.ts";
+
+const PICKER_WIDTH = 84;
+const PICKER_HORIZONTAL_MARGIN = 4;
+// Picker border (2) + Select's left padding (1) + selection indicator (2).
+const PICKER_NAME_INSET = 5;
 
 interface SelectOption {
   name: string;
@@ -37,11 +53,38 @@ export function visiblePickerOptions(
 export function Picker(props: PickerProps): ReactNode {
   const theme = props.theme ?? defaultTheme;
   const terminal = useTerminalDimensions();
+  const width = Math.min(
+    PICKER_WIDTH,
+    Math.max(20, terminal.width - PICKER_HORIZONTAL_MARGIN),
+  );
   const query = props.query ?? props.picker.search?.query ?? "";
   const options = visiblePickerOptions(props.picker, query);
   const selectedIndex = options.length > 0
     ? Math.min(props.selectedIndex ?? 0, options.length - 1)
     : 0;
+  const selected = options[selectedIndex];
+  const nameWidth = width - PICKER_NAME_INSET;
+  const selectedOverflows = selected
+    ? displayWidth(selected.name) > nameWidth
+    : false;
+  const [marqueeOffset, setMarqueeOffset] = useState(0);
+  useEffect(() => {
+    setMarqueeOffset(0);
+    if (!selected || !selectedOverflows) return;
+    const cycleWidth = marqueeContent(selected.name).cycleWidth;
+    const timer = setInterval(
+      () => setMarqueeOffset((offset) => nextMarqueeOffset(offset, cycleWidth)),
+      MARQUEE_INTERVAL_MS,
+    );
+    return () => clearInterval(timer);
+  }, [selected?.name, selectedIndex, selectedOverflows]);
+  const selectOptions = selectedOverflows
+    ? options.map((option, index) =>
+      index === selectedIndex
+        ? { ...option, name: marqueeFrame(option.name, marqueeOffset) }
+        : option
+    )
+    : options;
   const status = props.picker.search?.loading
     ? "Searching…"
     : options.length === 0
@@ -58,7 +101,7 @@ export function Picker(props: PickerProps): ReactNode {
         position: "absolute",
         left: 2,
         bottom: props.anchorBottom,
-        width: Math.min(84, Math.max(20, terminal.width - 4)),
+        width,
         height: Math.min(
           20,
           Math.max(
@@ -92,7 +135,7 @@ export function Picker(props: PickerProps): ReactNode {
         <select
           focused={!props.picker.search}
           style={{ flexGrow: 1 }}
-          options={options}
+          options={selectOptions}
           selectedIndex={selectedIndex}
           onChange={(index: number) => props.onSelectionChange?.(index)}
           onSelect={(_i: number, option: SelectOption | null) => {
