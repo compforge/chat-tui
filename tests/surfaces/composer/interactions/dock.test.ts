@@ -77,6 +77,22 @@ async function mount(
 }
 
 describe("InteractionDock", () => {
+  test("sends Shift+Tab as a mode-cycle intent without changing the draft", async () => {
+    const harness = testProtocol();
+    let cycles = 0;
+    harness.protocol.cycleMode = () => {
+      cycles++;
+    };
+    const { setup, composer } = await mount(harness.protocol);
+
+    for (const key of "draft") setup.mockInput.pressKey(key);
+    await setup.waitFor(() => composer.plainText === "draft");
+    setup.mockInput.pressTab({ shift: true });
+    await setup.waitFor(() => cycles === 1);
+
+    expect(composer.plainText).toBe("draft");
+  });
+
   test("preserves the active composer while the sidecar updates", async () => {
     const harness = testProtocol({
       sidecar: {

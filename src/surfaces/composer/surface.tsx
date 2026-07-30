@@ -219,6 +219,29 @@ export const ComposerSurface = memo(function ComposerSurface(
       useSuggestedInput(activeInteraction);
       return;
     }
+    if (
+      key.shift &&
+      key.name === "tab" &&
+      protocol.cycleMode &&
+      !blockingInteraction &&
+      !picker
+    ) {
+      key.preventDefault();
+      try {
+        void Promise.resolve(protocol.cycleMode()).catch((error) => {
+          setLocalToast({
+            text: error instanceof Error ? error.message : String(error),
+            tone: "error",
+          });
+        });
+      } catch (error) {
+        setLocalToast({
+          text: error instanceof Error ? error.message : String(error),
+          tone: "error",
+        });
+      }
+      return;
+    }
     if (key.name === "escape") {
       if (currentSidecarLayout === "overlay" && protocol.dismissSidecar) {
         key.preventDefault();
