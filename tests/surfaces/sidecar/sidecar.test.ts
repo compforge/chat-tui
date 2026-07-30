@@ -114,6 +114,49 @@ describe("sidecar", () => {
     }));
   });
 
+  test("wraps long statuses below links instead of collapsing their titles", async () => {
+    const setup = await createTestRenderer({ width: 42, height: 10, screenMode: "main-screen" });
+    const root = createRoot(setup.renderer);
+    mounted = { root, setup };
+
+    root.render(
+      createElement(Sidecar, {
+        state: {
+          title: "Board",
+          sections: [{
+            id: "pull-requests",
+            title: "pr",
+            items: [{
+              id: "pr-111",
+              title: "compforge/devloop #111",
+              url: "https://github.com/compforge/devloop/pull/111",
+              status: "Merge conflict · Unresolved review threads",
+              tone: "error",
+            }],
+          }],
+        },
+        theme: defaultTheme,
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await setup.flush();
+
+    const texts = [...Renderable.renderablesByNumber.values()].filter(
+      (renderable): renderable is TextRenderable =>
+        renderable instanceof TextRenderable,
+    );
+    const title = texts.find((text) =>
+      text.plainText === "compforge/devloop #111"
+    );
+    const status = texts.find((text) =>
+      text.plainText === "Merge conflict · Unresolved review threads"
+    );
+    expect(title?.width).toBeGreaterThan(1);
+    expect(status?.y).toBeGreaterThan(title?.y ?? Number.POSITIVE_INFINITY);
+    expect(status?.width).toBeLessThanOrEqual(37);
+    expect(status?.height).toBeGreaterThan(1);
+  });
+
   test("scrolls details only when they overflow", async () => {
     const setup = await createTestRenderer({ width: 42, height: 10, screenMode: "main-screen" });
     const root = createRoot(setup.renderer);
