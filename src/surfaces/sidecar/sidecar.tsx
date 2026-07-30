@@ -73,8 +73,15 @@ export function Sidecar(props: SidecarProps): ReactNode {
             ) : null}
             {section.items.map((item) => (
               <box key={item.id} style={{ flexDirection: "column", flexShrink: 0 }}>
-                <box style={{ flexDirection: "row", justifyContent: "space-between", gap: 1 }}>
-                  <text fg={props.theme.user} wrapMode="word">
+                <box
+                  style={{
+                    flexDirection: "row",
+                    flexWrap: "wrap",
+                    justifyContent: "space-between",
+                    columnGap: 1,
+                  }}
+                >
+                  <text fg={props.theme.user} wrapMode="word" style={{ flexShrink: 0 }}>
                     {item.url ? <a href={item.url}>{item.title}</a> : item.title}
                   </text>
                   {item.status ? (
