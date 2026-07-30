@@ -9,7 +9,7 @@ import {
 import { displayWidth, ellipsize } from "./text.ts";
 
 const MARQUEE_GAP = "   ";
-const MARQUEE_INTERVAL_MS = 200;
+export const MARQUEE_INTERVAL_MS = 200;
 
 // Repeat the text after a blank gap so the viewport can keep moving forward
 // and wrap to the first copy without visibly reversing direction.
@@ -28,6 +28,31 @@ export function nextMarqueeOffset(
   cycleWidth: number,
 ): number {
   return current + 1 >= cycleWidth ? 0 : current + 1;
+}
+
+/** Text suffix shown when a renderer cannot scroll a stable text viewport itself. */
+export function marqueeFrame(text: string, offset: number): string {
+  const marquee = marqueeContent(text);
+  const normalizedOffset = Math.max(
+    0,
+    Math.min(offset, marquee.cycleWidth - 1),
+  );
+  let skippedWidth = 0;
+  let frame = "";
+  for (const char of marquee.text) {
+    const charWidth = displayWidth(char);
+    if (skippedWidth + charWidth <= normalizedOffset) {
+      skippedWidth += charWidth;
+      continue;
+    }
+    if (skippedWidth < normalizedOffset) {
+      frame += " ".repeat(skippedWidth + charWidth - normalizedOffset);
+    } else {
+      frame += char;
+    }
+    skippedWidth += charWidth;
+  }
+  return frame;
 }
 
 export interface MarqueeTextProps {
