@@ -11,6 +11,7 @@ import {
 
 import type { ChatProtocol } from "../protocol/chat-protocol.ts";
 import type { CommandSpec } from "../protocol/command.ts";
+import { InputProvider } from "../input/keyboard.tsx";
 import type { ToastMessage } from "../state/footer.ts";
 import { ComposerSurface } from "../surfaces/composer/surface.tsx";
 import type { Candidate } from "../surfaces/composer/completion.ts";
@@ -33,6 +34,14 @@ export interface ChatShellProps {
 }
 
 export function ChatShell(props: ChatShellProps): ReactNode {
+  return (
+    <InputProvider>
+      <ChatShellContent {...props} />
+    </InputProvider>
+  );
+}
+
+function ChatShellContent(props: ChatShellProps): ReactNode {
   const { protocol } = props;
   const theme = props.theme ?? defaultTheme;
   const renderer = useRenderer();
@@ -76,6 +85,7 @@ export function ChatShell(props: ChatShellProps): ReactNode {
       <SidecarSurface
         store={store}
         theme={theme}
+        onDismiss={protocol.dismissSidecar}
       />
     </box>
   );

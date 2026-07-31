@@ -35,9 +35,11 @@ chat-tui/
 - **展示必须诚实且保持语义正交**：展示数据不冒充上游事件，结果、提示、来源和正文格式各自表达；未知值显式暴露，不静默伪装成已知状态。具体展示与裁剪规则见 `docs/surfaces.md`。
 - **State / Store / Surface 各司其职**：State 是数据组织单元，Store 负责发布和订阅，Surface 是独立渲染单元；三者相关但不要求一一对应。无关 State 更新不能让 Composer 丢焦点、重建 buffer 或清空 draft。具体边界见 `docs/kernel.md`。
 - **实现以纯逻辑和领域内聚为先**：交互/展示规则优先写成可测试的纯函数，组件只做粘合；逻辑归所属 Surface，只有跨 Surface 的终端原语进入 `terminal/`。内部路径不是兼容边界，公开 API 只由根 `index.ts` 定义。代码边界见 `docs/kernel.md`。
+- **争用键走分层行为路由**：组件声明语义 command 与 binding，最高活跃层处理后即停止；返回 `false` 才向外层或聚焦控件传播。原始 KeyEvent 不进入 ChatProtocol，完整契约见 `docs/input-routing.md`。
 
 ## References
 
 - `README.md` — 对外文档：protocol 表、快速上手、能力清单
 - `docs/kernel.md` — State / Store / Surface 核心模型、双向流程与代码边界
 - `docs/surfaces.md` — Surface 区块、时态分层、展示语义与视觉行预算
+- `docs/input-routing.md` — 键盘行为、输入层级、传播终止与 protocol 边界

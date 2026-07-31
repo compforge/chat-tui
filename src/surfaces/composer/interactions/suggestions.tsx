@@ -1,6 +1,10 @@
 import { useTerminalDimensions } from "@opentui/react";
 import { Fragment, type ReactNode } from "react";
 
+import {
+  INPUT_LAYER_PRIORITY,
+  useInputBindings,
+} from "../../../input/keyboard.tsx";
 import { defaultTheme, type Theme } from "../../../theme.ts";
 import { MarqueeText } from "../../../terminal/marquee.tsx";
 import type { Candidate } from "../completion.ts";
@@ -10,12 +14,64 @@ export interface SuggestionsProps {
   selectedIndex: number;
   anchorBottom: number;
   theme?: Theme;
+  onPrevious: () => void;
+  onNext: () => void;
+  onAccept: (key: "tab" | "enter") => void;
+  onDismiss: () => void;
 }
 
-/** 补全候选。按键处理归 ComposerSurface，选中态由 props 提供。 */
+/** 补全候选声明自身行为；具体补全计算和选中态由 ComposerSurface 提供。 */
 export function Suggestions(props: SuggestionsProps): ReactNode {
   const theme = props.theme ?? defaultTheme;
   const terminal = useTerminalDimensions();
+  useInputBindings(() => ({
+    priority: INPUT_LAYER_PRIORITY.popup,
+    commands: [
+      {
+        name: "suggestions.previous",
+        run: () => {
+          if (props.candidates.length === 0) return false;
+          props.onPrevious();
+        },
+      },
+      {
+        name: "suggestions.next",
+        run: () => {
+          if (props.candidates.length === 0) return false;
+          props.onNext();
+        },
+      },
+      {
+        name: "suggestions.accept-tab",
+        run: () => {
+          if (props.candidates.length === 0) return false;
+          props.onAccept("tab");
+        },
+      },
+      {
+        name: "suggestions.accept-enter",
+        run: () => {
+          if (props.candidates.length === 0) return false;
+          props.onAccept("enter");
+        },
+      },
+      {
+        name: "suggestions.dismiss",
+        run: () => {
+          if (props.candidates.length === 0) return false;
+          props.onDismiss();
+        },
+      },
+    ],
+    bindings: [
+      { key: "up", cmd: "suggestions.previous" },
+      { key: "down", cmd: "suggestions.next" },
+      { key: "tab", cmd: "suggestions.accept-tab" },
+      { key: "return", cmd: "suggestions.accept-enter" },
+      { key: "kpenter", cmd: "suggestions.accept-enter" },
+      { key: "escape", cmd: "suggestions.dismiss" },
+    ],
+  }));
   if (props.candidates.length === 0) return null;
   const groupHeadings = props.candidates.reduce(
     (count, candidate, index) =>

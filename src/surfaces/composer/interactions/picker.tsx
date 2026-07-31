@@ -5,6 +5,10 @@ import {
   type ReactNode,
 } from "react";
 
+import {
+  INPUT_LAYER_PRIORITY,
+  useInputBindings,
+} from "../../../input/keyboard.tsx";
 import type { PickerView } from "../../../state/composer.ts";
 import {
   MARQUEE_INTERVAL_MS,
@@ -35,6 +39,7 @@ export interface PickerProps {
   onQueryChange?: (query: string) => void;
   onSelectionChange?: (index: number) => void;
   onSelect: (value: string) => void;
+  onCancel: () => void;
 }
 
 export function visiblePickerOptions(
@@ -92,6 +97,78 @@ export function Picker(props: PickerProps): ReactNode {
       : undefined;
   const searchRows = props.picker.search ? 3 : 0;
   const statusRows = status ? 1 : 0;
+  useInputBindings(() => ({
+    priority: INPUT_LAYER_PRIORITY.popup,
+    commands: [
+      {
+        name: "picker.cancel",
+        run: () => {
+          if (props.picker.search && query) {
+            props.onQueryChange?.("");
+          } else {
+            props.onCancel();
+          }
+        },
+      },
+      {
+        name: "picker.previous",
+        run: () => {
+          if (!props.picker.search || options.length === 0) return false;
+          props.onSelectionChange?.(
+            (selectedIndex - 1 + options.length) % options.length,
+          );
+        },
+      },
+      {
+        name: "picker.next",
+        run: () => {
+          if (!props.picker.search || options.length === 0) return false;
+          props.onSelectionChange?.((selectedIndex + 1) % options.length);
+        },
+      },
+      {
+        name: "picker.confirm",
+        run: () => {
+          if (!props.picker.search) return false;
+          const selected = options[selectedIndex];
+          if (!selected) return false;
+          props.onSelect(selected.value);
+        },
+      },
+    ],
+    bindings: [
+      {
+        key: "escape",
+        desc: "Clear picker query or close picker",
+        group: "Picker",
+        cmd: "picker.cancel",
+      },
+      {
+        key: "up",
+        desc: "Previous picker option",
+        group: "Picker",
+        cmd: "picker.previous",
+      },
+      {
+        key: "down",
+        desc: "Next picker option",
+        group: "Picker",
+        cmd: "picker.next",
+      },
+      {
+        key: "return",
+        desc: "Choose picker option",
+        group: "Picker",
+        cmd: "picker.confirm",
+      },
+      {
+        key: "kpenter",
+        desc: "Choose picker option",
+        group: "Picker",
+        cmd: "picker.confirm",
+      },
+    ],
+  }));
   return (
     <box
       title={props.picker.title}

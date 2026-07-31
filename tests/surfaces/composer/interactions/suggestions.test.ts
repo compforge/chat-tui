@@ -5,7 +5,7 @@ import {
   TextRenderable,
 } from "@opentui/core";
 import { createTestRenderer, type TestRendererSetup } from "@opentui/core/testing";
-import { createRoot, useKeyboard, type Root } from "@opentui/react";
+import { createRoot, type Root } from "@opentui/react";
 import { createElement, useState } from "react";
 
 import {
@@ -38,16 +38,15 @@ const candidates: Candidate[] = [
 
 function SelectableSuggestions() {
   const [selectedIndex, setSelectedIndex] = useState(0);
-  useKeyboard((key) => {
-    if (key.name !== "down") return;
-    key.preventDefault();
-    setSelectedIndex(1);
-  });
   return createElement(Suggestions, {
     candidates,
     selectedIndex,
     anchorBottom: 3,
     theme: defaultTheme,
+    onPrevious: () => setSelectedIndex(0),
+    onNext: () => setSelectedIndex(1),
+    onAccept: () => {},
+    onDismiss: () => {},
   });
 }
 

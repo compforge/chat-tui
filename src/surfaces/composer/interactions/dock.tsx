@@ -5,6 +5,10 @@ import {
   type InteractionView,
 } from "../../../state/composer.ts";
 import type { InteractionResponse } from "../../../protocol/interaction.ts";
+import {
+  INPUT_LAYER_PRIORITY,
+  useInputBindings,
+} from "../../../input/keyboard.tsx";
 import { defaultTheme, type Theme } from "../../../theme.ts";
 import { ApprovalCard } from "./approval-card.tsx";
 import { QuestionCard } from "./question-card.tsx";
@@ -30,6 +34,62 @@ function frameTitle(count: number): string {
  */
 export function InteractionDock(props: InteractionDockProps): ReactNode {
   const interaction = props.interactions[0];
+  useInputBindings(() => ({
+    priority: INPUT_LAYER_PRIORITY.modal,
+    commands: [
+      {
+        name: "interaction.cancel",
+        run: () => {
+          if (!interaction) return false;
+          props.onResolve(interaction.id, interaction.cancelResponse);
+        },
+      },
+      {
+        name: "suggested-input.use",
+        run: () => {
+          if (
+            interaction?.kind !== "suggested_input" ||
+            !props.canUseSuggestedInput
+          ) {
+            return false;
+          }
+          props.onUseSuggestedInput(interaction);
+        },
+      },
+      {
+        name: "suggested-input.dismiss",
+        run: () => {
+          if (
+            interaction?.kind !== "suggested_input" ||
+            !props.canUseSuggestedInput
+          ) {
+            return false;
+          }
+          props.onResolve(interaction.id, interaction.cancelResponse);
+        },
+      },
+    ],
+    bindings: [
+      {
+        key: "escape",
+        desc: "Cancel interaction",
+        group: "Interaction",
+        cmd: "interaction.cancel",
+      },
+      {
+        key: "ctrl+y",
+        desc: "Use suggested input",
+        group: "Interaction",
+        cmd: "suggested-input.use",
+      },
+      {
+        key: "ctrl+c",
+        desc: "Dismiss suggested input",
+        group: "Interaction",
+        cmd: "suggested-input.dismiss",
+      },
+    ],
+  }));
   if (!interaction) return null;
 
   const title = frameTitle(props.interactions.length);

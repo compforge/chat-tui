@@ -9,6 +9,10 @@ import {
 
 import type { QuestionAnswers } from "../../../protocol/interaction.ts";
 import type { QuestionView } from "../../../state/composer.ts";
+import {
+  INPUT_LAYER_PRIORITY,
+  useInputBindings,
+} from "../../../input/keyboard.tsx";
 import { ellipsize } from "../../../terminal/text.ts";
 import { defaultTheme, type Theme } from "../../../theme.ts";
 import { questionCardLayout } from "./question.ts";
@@ -39,6 +43,27 @@ export function QuestionCard(props: QuestionCardProps): ReactNode {
   const [otherMode, setOtherMode] = useState(false);
   const [focusedOption, setFocusedOption] = useState(0);
   const input = useRef<InputRenderable | null>(null);
+
+  useInputBindings(() => ({
+    priority: INPUT_LAYER_PRIORITY.editing,
+    commands: [{
+      name: "question.cancel-edit",
+      run: () => {
+        const prompt = props.question.questions[questionIndex];
+        const canReturnToChoices =
+          otherMode &&
+          ((prompt?.options?.length ?? 0) > 0 || prompt?.allowOther === true);
+        if (!canReturnToChoices) return false;
+        setOtherMode(false);
+      },
+    }],
+    bindings: [{
+      key: "escape",
+      desc: "Return to question choices",
+      group: "Question",
+      cmd: "question.cancel-edit",
+    }],
+  }));
 
   useEffect(() => {
     setQuestionIndex(0);
