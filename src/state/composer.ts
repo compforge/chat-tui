@@ -1,3 +1,5 @@
+import type { InteractionResponse } from "../protocol/interaction.ts";
+
 export interface ApprovalOption {
   optionId: string;
   name: string;
@@ -34,6 +36,8 @@ interface InteractionViewBase {
   id: string;
   requester?: string;
   blocking: boolean;
+  /** The producer defines how a user cancel intent resolves this interaction. */
+  cancelResponse: InteractionResponse;
 }
 
 export type InteractionView =

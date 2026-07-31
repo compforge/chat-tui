@@ -93,6 +93,7 @@ describe("Picker search", () => {
         theme: defaultTheme,
         onSelectionChange: setSelectedIndex,
         onSelect: () => {},
+        onCancel: () => {},
       });
     }
 

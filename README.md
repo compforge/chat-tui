@@ -9,7 +9,7 @@ Building a Claude Code / Codex style CLI means rebuilding the same chat surface 
 ## Install
 
 ```bash
-bun add chat-tui @opentui/core @opentui/react react
+bun add chat-tui @opentui/core @opentui/keymap @opentui/react react
 ```
 
 ## Quick start
@@ -67,6 +67,7 @@ bun examples/echo.tsx
 - **Independent Surfaces** — Timeline, Composer, Activity, Footer, and Sidecar subscribe only to the State they consume
 - **Optional sidecar** — generic auxiliary State renders beside the main chat when space allows, or as an explicit overlay
 - **Composable UI** — use `ChatShell` for the complete interface or compose exported Surfaces and focused building blocks with an injectable theme
+- **Layered input routing** — components declare semantic behaviors in focus-aware layers; one matched behavior consumes a contested key
 
 ## Support and limits
 
@@ -82,7 +83,7 @@ provider supports and how each operation maps to it.
 | Mode cycling | Optional `cycleMode()` maps `Shift+Tab` to the harness-defined next mode |
 | Queue and history | Display, recall, and navigation are supported; queue ownership and same-turn steering remain in the harness |
 | Generic choice | Picker supports static options, local filtering, and harness-owned remote search |
-| Human interaction | Permission, structured question, and suggested-input variants share `resolveInteraction()`; arbitrary forms are outside the current contract |
+| Human interaction | Permission, structured question, and suggested-input variants share `resolveInteraction()`; each active item declares its exact `cancelResponse`, while chat-tui maps Esc to that semantic cancel intent |
 
 ### Harness → user
 
@@ -109,6 +110,7 @@ Surfaces without subscribing to their State.
 
 - [`docs/kernel.md`](docs/kernel.md) — core model, bidirectional flow, dependency boundaries, and verification constraints
 - [`docs/surfaces.md`](docs/surfaces.md) — visual hierarchy, Surface responsibilities, and interaction invariants
+- [`docs/input-routing.md`](docs/input-routing.md) — keyboard layers, behavior ownership, propagation, and protocol boundary
 
 ## Development
 

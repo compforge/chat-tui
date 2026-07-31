@@ -1,6 +1,5 @@
 // ComposerSurface：持有 draft、焦点和输入交互；订阅 composer State 与 sidecar 布局。
 
-import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import {
   memo,
   useCallback,
@@ -28,19 +27,20 @@ import { InteractionDock } from "./interactions/dock.tsx";
 import { Picker } from "./interactions/picker.tsx";
 import { Suggestions } from "./interactions/suggestions.tsx";
 import { useExitConfirmation } from "./exit-confirmation.ts";
-import { escapeAction } from "./keys.ts";
 import { usePickerController } from "./picker-controller.ts";
 import { InputArea } from "./queued.tsx";
+import {
+  INPUT_LAYER_PRIORITY,
+  useInputBindings,
+} from "../../input/keyboard.tsx";
 import type { ChatProtocol } from "../../protocol/chat-protocol.ts";
 import type { CommandSpec } from "../../protocol/command.ts";
 import type { InteractionView } from "../../state/composer.ts";
 import type { ToastMessage } from "../../state/footer.ts";
-import type { SidecarState } from "../../state/sidecar.ts";
 import type { ChatStore } from "../../store/chat-store.ts";
-import { useStoreSelector, useStoreState } from "../../store/react.ts";
+import { useStoreState } from "../../store/react.ts";
 import { type Theme } from "../../theme.ts";
 import { ActivitySurface } from "../activity/surface.tsx";
-import { sidecarLayout } from "../sidecar/layout.ts";
 
 const CTRL_C_EXIT_HINT = "Press Ctrl+C again to exit";
 const CTRL_C_CLEARED_HINT = "Draft cleared; press Ctrl+C again to exit";
@@ -59,18 +59,7 @@ export const ComposerSurface = memo(function ComposerSurface(
 ): ReactNode {
   const { protocol } = props;
   const theme = props.theme;
-  const terminal = useTerminalDimensions();
   const composerView = useStoreState(props.store, "composer");
-  const selectSidecarLayout = useCallback(
-    (sidecar: SidecarState | undefined) =>
-      sidecarLayout(sidecar, terminal.width),
-    [terminal.width],
-  );
-  const currentSidecarLayout = useStoreSelector(
-    props.store,
-    "sidecar",
-    selectSidecarLayout,
-  );
   const setLocalToast = props.setLocalToast;
 
   const [draft, setDraft] = useState("");
@@ -180,172 +169,130 @@ export const ComposerSurface = memo(function ComposerSurface(
   );
 
   const busy = composerView.busy ?? false;
-  useKeyboard((key) => {
-    const isCtrlC = key.ctrl && key.name === "c";
-    if (!isCtrlC) exitConfirmation.disarm();
-    if (isCtrlC) {
-      // Ctrl+C 只管理 composer/退出；当前 turn 的中断统一归 Esc。
-      key.preventDefault();
-      if (activeInteraction?.kind === "suggested_input" && !draft) {
-        void protocol.resolveInteraction(activeInteraction.id, {
-          kind: "suggested_input",
-          outcome: "dismissed",
-        });
-        setLocalToast({ text: "Suggestion dismissed", tone: "info" });
-        return;
-      }
-      const action = exitConfirmation.nextAction(draft !== "");
-      if (action === "clear-draft") {
-        releaseEditingSuggestion();
-        resetComposer();
-        setSuggIdx(0);
-        exitConfirmation.arm(CTRL_C_CLEARED_HINT);
-      } else if (action === "exit") void protocol.exit();
-      else exitConfirmation.arm(CTRL_C_EXIT_HINT);
-      return;
-    }
-    if (key.ctrl && key.name === "d") {
-      // shell 习惯：空输入时 EOF 即退出
-      if (!draft && !busy) void protocol.exit();
-      return;
-    }
-    if (
-      key.ctrl &&
-      key.name === "y" &&
-      activeInteraction?.kind === "suggested_input" &&
-      !draft
-    ) {
-      key.preventDefault();
-      useSuggestedInput(activeInteraction);
-      return;
-    }
-    if (
-      key.shift &&
-      key.name === "tab" &&
-      protocol.cycleMode &&
-      !blockingInteraction &&
-      !picker
-    ) {
-      key.preventDefault();
-      void Promise.resolve()
-        .then(() => protocol.cycleMode?.())
-        .catch((error) => {
-          setLocalToast({
-            text: error instanceof Error ? error.message : String(error),
-            tone: "error",
-          });
-        });
-      return;
-    }
-    if (key.name === "escape") {
-      if (currentSidecarLayout === "overlay" && protocol.dismissSidecar) {
-        key.preventDefault();
-        protocol.dismissSidecar();
-        return;
-      }
-      if (picker?.search && pickerController.query) {
-        key.preventDefault();
-        pickerController.updateQuery("");
-        return;
-      }
-      const action = escapeAction({
-        busy,
-        hasPicker: Boolean(picker && !blockingInteraction),
-        hasCandidates: candidates.length > 0,
-      });
-      if (action !== "none") key.preventDefault();
-      if (action === "cancel-turn") protocol.cancel();
-      else if (action === "close-picker" && picker) protocol.resolvePicker(picker.id, null);
-      else if (action === "dismiss-suggestions") setSuggDismissed(true);
-      if (action !== "none") return;
-    }
-    if (
-      picker?.search &&
-      ["down", "up", "return", "kpenter"].includes(key.name)
-    ) {
-      key.preventDefault();
-      if (key.name === "down" && pickerController.options.length > 0) {
-        pickerController.updateSelectedIndex(
-          (pickerController.selectedIndex + 1) %
-            pickerController.options.length,
-        );
-      } else if (key.name === "up" && pickerController.options.length > 0) {
-        pickerController.updateSelectedIndex(
-          (pickerController.selectedIndex -
-            1 +
-            pickerController.options.length) %
-            pickerController.options.length,
-        );
-      } else {
-        const selected =
-          pickerController.options[pickerController.selectedIndex];
-        if (selected) protocol.resolvePicker(picker.id, selected.value);
-      }
-      return;
-    }
-    if (candidates.length > 0 && ["down", "up", "tab", "return", "kpenter"].includes(key.name)) {
-      // 候选浮层：↑/↓ 选择，Tab 补全，Enter 接受（slash 直接执行，@ 只插入），Esc 关闭。
-      // 全局 handler 先于聚焦 renderable 执行；preventDefault 阻止 textarea 同时处理这些编辑键。
-      key.preventDefault();
-      if (key.name === "down") setSuggIdx((i) => (i + 1) % candidates.length);
-      else if (key.name === "up") setSuggIdx((i) => (i - 1 + candidates.length) % candidates.length);
-      else if (trigger) {
-        const chosen = candidates[sel];
-        if (chosen) {
-          const accepted = acceptCompletion(
-            draft,
-            trigger,
-            chosen,
-            key.name === "tab" ? "tab" : "enter",
-          );
-          if (accepted.submit) void send(accepted.text);
-          else {
-            setDraft(accepted.text);
-            composer.current?.setText(accepted.text);
+  useInputBindings(() => ({
+    priority: INPUT_LAYER_PRIORITY.surface,
+    commands: [
+      {
+        name: "composer.clear-or-exit",
+        run: () => {
+          // Ctrl+C 只管理 composer/退出；当前 turn 的中断统一归 Esc。
+          const action = exitConfirmation.nextAction(draft !== "");
+          if (action === "clear-draft") {
+            releaseEditingSuggestion();
+            resetComposer();
             setSuggIdx(0);
+            exitConfirmation.arm(CTRL_C_CLEARED_HINT);
+          } else if (action === "exit") {
+            void protocol.exit();
+          } else {
+            exitConfirmation.arm(CTRL_C_EXIT_HINT);
           }
-        }
-      }
-      return;
-    }
-    // ↑：优先级 队列召回（仅空输入，避免覆盖已输入内容）→ 历史回溯（光标在边界）→ 光标上移。
-    if (key.name === "up" && !blockingInteraction && !picker) {
-      if (!draft) {
-        const recalled = protocol.recallQueued?.();
-        if (recalled) {
-          key.preventDefault();
-          releaseEditingSuggestion();
-          setDraft(recalled.text);
-          composer.current?.setText(recalled.text);
-          setLocalToast({ text: "Recalled queued message; edit and resend", tone: "info" });
-          return;
-        }
-      }
-      if (composer.current?.cursorAtBoundary() ?? true) {
-        const entry = protocol.historyPrev?.(draft);
-        if (entry) {
-          key.preventDefault();
+        },
+      },
+      {
+        name: "composer.exit-eof",
+        run: () => {
+          exitConfirmation.disarm();
+          if (draft || busy) return false;
+          void protocol.exit();
+        },
+      },
+      {
+        name: "composer.cycle-mode",
+        run: () => {
+          exitConfirmation.disarm();
+          if (!protocol.cycleMode || blockingInteraction || picker) return false;
+          void Promise.resolve()
+            .then(() => protocol.cycleMode?.())
+            .catch((error) => {
+              setLocalToast({
+                text:
+                  error instanceof Error ? error.message : String(error),
+                tone: "error",
+              });
+            });
+        },
+      },
+      {
+        name: "turn.cancel",
+        run: () => {
+          exitConfirmation.disarm();
+          if (!busy) return false;
+          protocol.cancel();
+        },
+      },
+      {
+        name: "composer.history-previous",
+        run: () => {
+          exitConfirmation.disarm();
+          if (blockingInteraction || picker) return false;
+          // ↑：队列召回（仅空输入）→ 历史回溯（光标在边界）→ 光标上移。
+          if (!draft) {
+            const recalled = protocol.recallQueued?.();
+            if (recalled) {
+              releaseEditingSuggestion();
+              setDraft(recalled.text);
+              composer.current?.setText(recalled.text);
+              setLocalToast({
+                text: "Recalled queued message; edit and resend",
+                tone: "info",
+              });
+              return;
+            }
+          }
+          if (!(composer.current?.cursorAtBoundary() ?? true)) return false;
+          const entry = protocol.historyPrev?.(draft);
+          if (!entry) return false;
           releaseEditingSuggestion();
           setDraft(entry.text);
           composer.current?.setText(entry.text);
-          return;
-        }
-      }
-    }
-    // ↓：历史前进（光标在边界）；未在浏览时接入方返回 null，放行为光标下移。
-    if (key.name === "down" && !blockingInteraction && !picker) {
-      if (composer.current?.cursorAtBoundary() ?? true) {
-        const entry = protocol.historyNext?.(draft);
-        if (entry) {
-          key.preventDefault();
+        },
+      },
+      {
+        name: "composer.history-next",
+        run: () => {
+          exitConfirmation.disarm();
+          if (
+            blockingInteraction ||
+            picker ||
+            !(composer.current?.cursorAtBoundary() ?? true)
+          ) {
+            return false;
+          }
+          const entry = protocol.historyNext?.(draft);
+          if (!entry) return false;
           releaseEditingSuggestion();
           setDraft(entry.text);
           composer.current?.setText(entry.text);
-          return;
-        }
+        },
+      },
+    ],
+    bindings: [
+      { key: "ctrl+c", cmd: "composer.clear-or-exit" },
+      { key: "ctrl+d", cmd: "composer.exit-eof" },
+      { key: "shift+tab", cmd: "composer.cycle-mode" },
+      { key: "escape", cmd: "turn.cancel" },
+      { key: "up", cmd: "composer.history-previous" },
+      { key: "down", cmd: "composer.history-next" },
+    ],
+  }));
+
+  const acceptSuggestion = useCallback(
+    (key: "tab" | "enter") => {
+      if (!trigger) return;
+      const chosen = candidates[sel];
+      if (!chosen) return;
+      const accepted = acceptCompletion(draft, trigger, chosen, key);
+      if (accepted.submit) {
+        void send(accepted.text);
+      } else {
+        setDraft(accepted.text);
+        composer.current?.setText(accepted.text);
+        setSuggIdx(0);
       }
-    }
-  });
+    },
+    [candidates, draft, sel, send, trigger],
+  );
 
   // Overlay 固定为 FooterSurface 预留两行（toast + footer），让 footer 更新
   // 无需反向通知 ComposerSurface 重新计算锚点。
@@ -391,7 +338,21 @@ export const ComposerSurface = memo(function ComposerSurface(
         </box>
       </InputArea>
 
-      <Suggestions candidates={candidates} selectedIndex={sel} anchorBottom={dockBottom} theme={theme} />
+      <Suggestions
+        candidates={candidates}
+        selectedIndex={sel}
+        anchorBottom={dockBottom}
+        theme={theme}
+        onPrevious={() =>
+          setSuggIdx((index) =>
+            (index - 1 + candidates.length) % candidates.length
+          )}
+        onNext={() =>
+          setSuggIdx((index) => (index + 1) % candidates.length)
+        }
+        onAccept={acceptSuggestion}
+        onDismiss={() => setSuggDismissed(true)}
+      />
 
       {picker && !blockingInteraction && !activeInteraction && (
         <Picker
@@ -403,6 +364,7 @@ export const ComposerSurface = memo(function ComposerSurface(
           onQueryChange={pickerController.updateQuery}
           onSelectionChange={pickerController.updateSelectedIndex}
           onSelect={(value) => protocol.resolvePicker(picker.id, value)}
+          onCancel={() => protocol.resolvePicker(picker.id, null)}
         />
       )}
 

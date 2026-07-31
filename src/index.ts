@@ -15,6 +15,15 @@ export { useStoreSelector, useStoreState } from "./store/react.ts";
 export * from "./theme.ts";
 export * from "./terminal/text.ts";
 export * from "./terminal/time.ts";
+export {
+  InputProvider,
+  INPUT_LAYER_PRIORITY,
+  useInputBindings,
+  type InputBindingLayer,
+  type InputKeymap,
+  type InputProviderProps,
+  type InputTargetRef,
+} from "./input/keyboard.tsx";
 
 export { ChatShell, type ChatShellProps } from "./shell/chat-shell.tsx";
 export {

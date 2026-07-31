@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import {
   BoxRenderable,
+  InputRenderable,
   Renderable,
   SelectRenderable,
   TextareaRenderable,
@@ -28,6 +29,9 @@ afterEach(() => {
 
 function testProtocol(initial: Partial<ChatState> = {}) {
   const responses: Array<{ id: string; response: InteractionResponse }> = [];
+  const turnCancels: string[] = [];
+  const pickerResults: Array<{ id: string; value: string | null }> = [];
+  const sidecarDismisses: string[] = [];
   const stateStore = createChatStore({
     timeline: { items: [] },
     composer: {},
@@ -40,15 +44,29 @@ function testProtocol(initial: Partial<ChatState> = {}) {
     stateStore,
     submit: () => {},
     command: () => {},
-    cancel: () => {},
+    cancel: () => {
+      turnCancels.push("cancel");
+    },
     exit: () => {},
-    resolvePicker: () => {},
+    resolvePicker: (id, value) => {
+      pickerResults.push({ id, value });
+    },
     searchPicker: () => {},
+    dismissSidecar: () => {
+      sidecarDismisses.push("dismiss");
+    },
     resolveInteraction(id, response) {
       responses.push({ id, response });
     },
   };
-  return { protocol, responses, stateStore };
+  return {
+    protocol,
+    responses,
+    turnCancels,
+    pickerResults,
+    sidecarDismisses,
+    stateStore,
+  };
 }
 
 async function mount(
@@ -61,6 +79,7 @@ async function mount(
   const setup = await createTestRenderer({
     width: dimensions.width,
     height: dimensions.height,
+    kittyKeyboard: true,
     screenMode: "main-screen",
   });
   const root = createRoot(setup.renderer);
@@ -165,6 +184,7 @@ describe("InteractionDock", () => {
           requester: "turn-coach",
           title: "Suggested follow-up",
           text: "Review the previous turn",
+          cancelResponse: { kind: "suggested_input", outcome: "dismissed" },
         }],
       },
     });
@@ -196,6 +216,7 @@ describe("InteractionDock", () => {
           blocking: false,
           title: "Suggested follow-up",
           text: "Check material risks",
+          cancelResponse: { kind: "suggested_input", outcome: "dismissed" },
         }],
       },
     });
@@ -227,6 +248,7 @@ describe("InteractionDock", () => {
           blocking: false,
           title: "Suggested follow-up",
           text: "Check material risks",
+          cancelResponse: { kind: "suggested_input", outcome: "dismissed" },
         }],
       },
     });
@@ -258,6 +280,7 @@ describe("InteractionDock", () => {
           blocking: false,
           title: "Suggested follow-up",
           text: "Check material risks",
+          cancelResponse: { kind: "suggested_input", outcome: "dismissed" },
         }],
       },
     });
@@ -269,5 +292,152 @@ describe("InteractionDock", () => {
       id: "proposal_3",
       response: { kind: "suggested_input", outcome: "dismissed" },
     }]);
+  });
+
+  test("routes Esc through the active interaction's declared response", async () => {
+    const harness = testProtocol({
+      composer: {
+        busy: true,
+        interactions: [{
+          id: "proposal_4",
+          kind: "suggested_input",
+          blocking: false,
+          title: "Suggested follow-up",
+          text: "Check material risks",
+          cancelResponse: { kind: "suggested_input", outcome: "dismissed" },
+        }],
+      },
+    });
+    const { setup } = await mount(harness.protocol);
+
+    setup.mockInput.pressEscape();
+    await setup.waitFor(() => harness.responses.length === 1);
+    expect(harness.responses).toEqual([{
+      id: "proposal_4",
+      response: { kind: "suggested_input", outcome: "dismissed" },
+    }]);
+    expect(harness.turnCancels).toEqual([]);
+  });
+
+  test("an inner question editor handles Esc before the interaction", async () => {
+    const harness = testProtocol({
+      composer: {
+        interactions: [{
+          id: "question_1",
+          kind: "question",
+          blocking: true,
+          cancelResponse: { kind: "cancelled" },
+          question: {
+            questions: [{
+              id: "strategy",
+              header: "Strategy",
+              question: "How should this run?",
+              options: [{
+                label: "Automatic",
+                description: "Use defaults",
+              }],
+              allowOther: true,
+            }],
+          },
+        }],
+      },
+    });
+    const { setup } = await mount(harness.protocol);
+
+    const choices = [...Renderable.renderablesByNumber.values()].find(
+      (renderable): renderable is SelectRenderable =>
+        renderable instanceof SelectRenderable,
+    );
+    if (!choices) throw new Error("question choices were not rendered");
+    choices.moveDown();
+    choices.selectCurrent();
+    await setup.waitFor(() =>
+      setup.renderer.currentFocusedRenderable instanceof InputRenderable
+    );
+
+    setup.mockInput.pressEscape();
+    await setup.waitFor(() =>
+      setup.captureCharFrame().includes("Automatic")
+    );
+    expect(harness.responses).toEqual([]);
+
+    setup.mockInput.pressEscape();
+    await setup.waitFor(() => harness.responses.length === 1);
+    expect(harness.responses).toEqual([{
+      id: "question_1",
+      response: { kind: "cancelled" },
+    }]);
+  });
+
+  test("a searchable picker clears its query before closing", async () => {
+    const harness = testProtocol({
+      composer: {
+        busy: true,
+        picker: {
+          id: "picker_1",
+          title: "Choose session",
+          options: [{
+            name: "Session one",
+            description: "First",
+            value: "one",
+          }],
+          search: {
+            mode: "local",
+            query: "session",
+            placeholder: "Search",
+          },
+        },
+      },
+    });
+    const { setup } = await mount(harness.protocol);
+
+    setup.mockInput.pressEscape();
+    await setup.flush();
+    expect(harness.pickerResults).toEqual([]);
+    expect(harness.turnCancels).toEqual([]);
+
+    setup.mockInput.pressEscape();
+    await setup.waitFor(() => harness.pickerResults.length === 1);
+    expect(harness.pickerResults).toEqual([{ id: "picker_1", value: null }]);
+    expect(harness.turnCancels).toEqual([]);
+  });
+
+  test("the topmost sidecar overlay handles Esc before an interaction", async () => {
+    const harness = testProtocol({
+      composer: {
+        interactions: [{
+          id: "approval_1",
+          kind: "approval",
+          blocking: true,
+          cancelResponse: { kind: "cancelled" },
+          approval: {
+            title: "Run command?",
+            options: [{
+              optionId: "allow",
+              name: "Allow",
+              kind: "allow_once",
+            }],
+          },
+        }],
+      },
+      sidecar: {
+        title: "Board",
+        mode: "open",
+        sections: [{
+          id: "active",
+          items: [{ id: "task", title: "Reconcile" }],
+        }],
+      },
+    });
+    const { setup } = await mount(harness.protocol, {
+      width: 80,
+      height: 24,
+    });
+
+    setup.mockInput.pressEscape();
+    await setup.waitFor(() => harness.sidecarDismisses.length === 1);
+
+    expect(harness.sidecarDismisses).toEqual(["dismiss"]);
+    expect(harness.responses).toEqual([]);
   });
 });

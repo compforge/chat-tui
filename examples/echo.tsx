@@ -249,6 +249,7 @@ class EchoHarness implements ChatProtocol {
             kind: "approval",
             blocking: true,
             requester: "echo",
+            cancelResponse: { kind: "approval", optionId: "no" },
             approval: {
               title: `Run "rm -rf ${argument || "/tmp/demo"}"?`,
               options: [
@@ -290,6 +291,7 @@ class EchoHarness implements ChatProtocol {
             kind: "question",
             blocking: true,
             requester: "echo",
+            cancelResponse: { kind: "cancelled" },
             question: {
               questions: [
                 {

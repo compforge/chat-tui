@@ -27,8 +27,9 @@ provider / product events
 ```
 
 harness 先把自身事件整理成当前应展示的 State，再通过 Store 原子发布；chat-tui 不维护第二套
-增量事件协议，也不尝试重放 provider 事件。用户按键先由 Surface 翻译成语义级 intent，再经
-`ChatProtocol` 交还 harness 执行。
+增量事件协议，也不尝试重放 provider 事件。用户按键先经输入层路由到当前组件声明的语义行为；
+纯 UI 行为就地完成，需要改变 harness 状态的行为再经 `ChatProtocol` 交还接入方执行。完整路由
+契约见 [`input-routing.md`](input-routing.md)。
 
 ## 关键设计
 
@@ -72,6 +73,7 @@ harness 先把自身事件整理成当前应展示的 State，再通过 Store �
   状态连接和渲染。
 - `terminal/` 只承载多个 Surface 真正共用的终端原语，带界面领域语义的逻辑留在所属 Surface。
 - `shell/` 拥有布局组合及真正跨 Surface 的交互，不代理具体 State。
+- `input/` 拥有跨组件共用的输入路由运行时与层级约定，不拥有具体 Surface 行为。
 - 根 `index.ts` 是唯一公开入口；内部路径不是兼容边界。
 
 ### 验证约束

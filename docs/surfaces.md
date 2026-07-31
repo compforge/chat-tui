@@ -71,6 +71,11 @@ Interaction Dock 锚定输入区，承载 Suggestions、Picker、ApprovalCard �
 Picker 的本地搜索过滤当前选项，远端搜索展示 harness 返回的新 State。Esc 优先清空查询，
 再次 Esc 才关闭 Picker，避免把编辑查询和退出选择混成同一个动作。
 
+Dock 子组件分别声明允许的用户行为：方向键和确认通常只改变本地选中态或提交当前值；cancel
+先退出 Question 的 Other 编辑、清空 Picker 查询等内层状态，再向外成为关闭 Picker、解决
+Interaction 或中断 turn。一次行为只由一个输入层消费，具体传播契约见
+[`input-routing.md`](input-routing.md)。
+
 ## FooterSurface
 
 Footer 同时承载两种寿命的信息：Toast 是短寿命操作回执或错误，footer text 是用户随时可查的

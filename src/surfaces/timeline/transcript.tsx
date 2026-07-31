@@ -5,13 +5,17 @@ import {
   treeSitterToStyledText,
   type StyledText,
 } from "@opentui/core";
-import { useKeyboard, useTerminalDimensions } from "@opentui/react";
+import { useTerminalDimensions } from "@opentui/react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import type {
   TranscriptBlockContent,
   TranscriptItem,
 } from "../../state/timeline.ts";
+import {
+  INPUT_LAYER_PRIORITY,
+  useInputBindings,
+} from "../../input/keyboard.tsx";
 import { defaultTheme, type Theme } from "../../theme.ts";
 import { clipLines, defaultClipPolicy, hiddenHint, type ClipBudget, type ClipPolicy } from "./clip.ts";
 import { diffRows, diffStats, type DiffView } from "./diff.ts";
@@ -55,12 +59,19 @@ export function Transcript(props: TranscriptProps): ReactNode {
   // 折叠是展示层关心的事（不需要理解 agent 在干什么），所以展开态自持在 Transcript，
   // 不进 ChatProtocol；键位也注册在这里，让高度预算特性对 ChatShell 完全透明。
   const [expanded, setExpanded] = useState(false);
-  useKeyboard((key) => {
-    if (key.ctrl && key.name === "o") {
-      key.preventDefault();
-      setExpanded((value) => !value);
-    }
-  });
+  useInputBindings(() => ({
+    priority: INPUT_LAYER_PRIORITY.surface,
+    commands: [{
+      name: "transcript.toggle-expanded",
+      run: () => setExpanded((value) => !value),
+    }],
+    bindings: [{
+      key: "ctrl+o",
+      desc: "Toggle expanded transcript content",
+      group: "Transcript",
+      cmd: "transcript.toggle-expanded",
+    }],
+  }));
   const { width: termWidth } = useTerminalDimensions();
   const clip: ClipContext = {
     policy: props.clipPolicy ?? defaultClipPolicy,
