@@ -52,10 +52,6 @@ interface ContentLine {
 export function Transcript(props: TranscriptProps): ReactNode {
   const theme = props.theme ?? defaultTheme;
   const syntaxStyle = useMemo(() => syntaxStyleFor(theme), [theme]);
-  const authorWidth = Math.max(
-    0,
-    ...props.items.filter((item) => item.type === "message").map((item) => messageAuthor(item).length),
-  );
   // 折叠是展示层关心的事（不需要理解 agent 在干什么），所以展开态自持在 Transcript，
   // 不进 ChatProtocol；键位也注册在这里，让高度预算特性对 ChatShell 完全透明。
   const [expanded, setExpanded] = useState(false);
@@ -86,7 +82,7 @@ export function Transcript(props: TranscriptProps): ReactNode {
       {props.items.map((item) => {
         const custom = props.renderItem?.(item);
         if (custom !== undefined) return custom;
-        return renderDefault(item, theme, syntaxStyle, props.showThoughts ?? true, clip, authorWidth);
+        return renderDefault(item, theme, syntaxStyle, props.showThoughts ?? true, clip);
       })}
     </scrollbox>
   );
@@ -98,7 +94,6 @@ function renderDefault(
   syntaxStyle: SyntaxStyle,
   showThoughts: boolean,
   clip: ClipContext,
-  authorWidth: number,
 ): ReactNode {
   if (item.type === "message") {
     const author = messageAuthor(item);
@@ -106,8 +101,8 @@ function renderDefault(
       item.role === "user" ? theme.user : (theme.agentColorFor?.(author) ?? theme.agent);
     return (
       <box key={item.id} style={{ flexDirection: "row", marginTop: 1, width: "100%" }}>
-        <text fg={color} style={{ width: authorWidth + 3, flexShrink: 0 }} selectable>
-          {`${author.padEnd(authorWidth + 1)}> `}
+        <text fg={color} style={{ width: 3, flexShrink: 0 }} selectable>
+          {item.role === "user" ? "✦  " : "●  "}
         </text>
         {item.format === "markdown" ? (
           <markdown
@@ -117,7 +112,12 @@ function renderDefault(
             style={{ flexGrow: 1, flexShrink: 1 }}
           />
         ) : (
-          <text style={{ flexGrow: 1, flexShrink: 1 }} wrapMode="word" selectable>
+          <text
+            fg={item.role === "user" ? theme.user : undefined}
+            style={{ flexGrow: 1, flexShrink: 1 }}
+            wrapMode="word"
+            selectable
+          >
             {item.text}
           </text>
         )}
@@ -135,7 +135,7 @@ function renderDefault(
       <box key={item.id} style={{ flexDirection: "column", marginTop: 1 }}>
         <text selectable>
           <span fg={color}>{icon}</span>
-          {blockTitle(item, theme)}
+          {blockTitle(item)}
           {note ? <span fg={theme.dim}>{` (${note})`}</span> : null}
         </text>
         {contents.map((content, index) =>
@@ -160,7 +160,7 @@ function renderDefault(
   return (
     <text key={item.id} style={{ marginTop: 1 }} selectable>
       <span fg={color}>{icon}</span>
-      {blockTitle(item, theme)}
+      {blockTitle(item)}
       {note ? <span fg={theme.dim}>{` (${note})`}</span> : null}
       {content.map((line, index) => (
         <span key={index} fg={line.hint || line.dim ? theme.dim : baseColor}>
@@ -175,17 +175,9 @@ function messageAuthor(item: Extract<TranscriptItem, { type: "message" }>): stri
   return item.author ?? (item.role === "user" ? "you" : "agent");
 }
 
-/** block 标题：有 author 时渲染 `author · title`，author 复用消息侧的 agentColorFor 着色协议 */
-function blockTitle(item: Extract<TranscriptItem, { type: "block" }>, theme: Theme): ReactNode {
-  if (!item.author) return <strong>{` ${item.title}`}</strong>;
-  const authorColor = theme.agentColorFor?.(item.author) ?? theme.agent;
-  return (
-    <>
-      <span fg={authorColor}>{` ${item.author}`}</span>
-      <span fg={theme.dim}>{" · "}</span>
-      <strong>{item.title}</strong>
-    </>
-  );
+/** Transcript 保持紧凑，不重复打印 author；归属仍保留在 State 中供着色与接入方追溯。 */
+function blockTitle(item: Extract<TranscriptItem, { type: "block" }>): ReactNode {
+  return <strong>{` ${item.title}`}</strong>;
 }
 
 /**

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { formatElapsed } from "../../../src/index.ts";
-import { runStatusParts, runStatusTail } from "../../../src/index.ts";
+import { runStatusParts, runStatusSpinner, runStatusTail } from "../../../src/index.ts";
 
 describe("formatElapsed", () => {
   test("mm:ss within the first hour", () => {
@@ -37,5 +37,14 @@ describe("runStatusTail", () => {
 
   test("hint without startedAt keeps single separator", () => {
     expect(runStatusTail({ label: "thinking…", hint: "Esc to interrupt" }, now)).toBe("thinking… · Esc to interrupt");
+  });
+});
+
+describe("runStatusSpinner", () => {
+  test("advances every 80ms and loops without negative indices", () => {
+    expect(runStatusSpinner(0)).toBe("⠋");
+    expect(runStatusSpinner(80)).toBe("⠙");
+    expect(runStatusSpinner(800)).toBe("⠋");
+    expect(runStatusSpinner(-1)).toBe("⠋");
   });
 });
