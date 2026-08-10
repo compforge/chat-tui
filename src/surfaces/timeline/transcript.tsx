@@ -392,6 +392,8 @@ function syntaxStyleFor(theme: Theme): SyntaxStyle {
     property: { fg: theme.plan },
     type: { fg: theme.plan },
     punctuation: { fg: theme.dim },
+    "markup.link.url": { fg: theme.accent, underline: true },
+    "string.special.url": { fg: theme.accent, underline: true },
   });
 }
 
