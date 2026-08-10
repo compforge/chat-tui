@@ -102,7 +102,7 @@ function renderDefault(
     return (
       <box key={item.id} style={{ flexDirection: "row", marginTop: 1, width: "100%" }}>
         <text fg={color} style={{ width: 3, flexShrink: 0 }} selectable>
-          {item.role === "user" ? "✦  " : "●  "}
+          {item.role === "user" ? "✨ " : "●  "}
         </text>
         {item.format === "markdown" ? (
           <markdown
