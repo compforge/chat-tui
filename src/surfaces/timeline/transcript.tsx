@@ -102,7 +102,7 @@ function renderDefault(
     return (
       <box key={item.id} style={{ flexDirection: "row", marginTop: 1, width: "100%" }}>
         <text fg={color} style={{ width: 3, flexShrink: 0 }} selectable>
-          {item.role === "user" ? "✦  " : "●  "}
+          {item.role === "user" ? "✨ " : "●  "}
         </text>
         {item.format === "markdown" ? (
           <markdown
@@ -392,6 +392,8 @@ function syntaxStyleFor(theme: Theme): SyntaxStyle {
     property: { fg: theme.plan },
     type: { fg: theme.plan },
     punctuation: { fg: theme.dim },
+    "markup.link.url": { fg: theme.accent, underline: true },
+    "string.special.url": { fg: theme.accent, underline: true },
   });
 }
 

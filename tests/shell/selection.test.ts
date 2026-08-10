@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { Renderable, TextareaRenderable } from "@opentui/core";
+import {
+  CodeRenderable,
+  Renderable,
+  TextareaRenderable,
+  TextAttributes,
+} from "@opentui/core";
 import { createTestRenderer, type TestRendererSetup } from "@opentui/core/testing";
 import { createRoot, type Root } from "@opentui/react";
 import { createElement } from "react";
@@ -85,11 +90,42 @@ describe("double-click selection", () => {
     const visibleText = [...Renderable.renderablesByNumber.values()]
       .filter((renderable): renderable is Renderable & { plainText: string } => "plainText" in renderable)
       .map((renderable) => renderable.plainText);
-    expect(visibleText).toContain("✦  ");
+    expect(visibleText).toContain("✨ ");
     expect(visibleText).toContain("●  ");
     expect(visibleText.some((text) =>
       text.includes("you >") || text.includes("codex >") || text.includes("claude ·")
     )).toBe(false);
+  });
+
+  test("underlines markdown link URLs", async () => {
+    const setup = await createTestRenderer({ width: 80, height: 8, screenMode: "main-screen" });
+    const root = createRoot(setup.renderer);
+    mounted = { root, setup };
+    root.render(
+      createElement(Transcript, {
+        items: [{
+          type: "message",
+          id: "agent",
+          role: "agent",
+          text: "Read [docs](https://example.com/guide)",
+          format: "markdown",
+        }],
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await setup.flush();
+    const markdownBlocks = [...Renderable.renderablesByNumber.values()]
+      .filter((renderable): renderable is CodeRenderable => renderable instanceof CodeRenderable);
+    await Promise.all(markdownBlocks.map((renderable) => renderable.highlightingDone));
+    await setup.flush();
+
+    const underlinedText = setup.captureSpans().lines
+      .flatMap((line) => line.spans)
+      .filter((span) => (span.attributes & TextAttributes.UNDERLINE) !== 0)
+      .map((span) => span.text)
+      .join("");
+    expect(underlinedText).toContain("https://example.com/guide");
+    expect(underlinedText).not.toContain("docs");
   });
 
   test("double click expands OpenTUI's selection to the complete token", async () => {
