@@ -109,6 +109,7 @@ export {
 export {
   RunStatus,
   runStatusParts,
+  runStatusSpinner,
   runStatusTail,
   type RunStatusProps,
 } from "./surfaces/activity/run-status.tsx";

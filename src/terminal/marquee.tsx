@@ -1,6 +1,7 @@
 import type { TextRenderable } from "@opentui/core";
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -78,7 +79,8 @@ export function MarqueeText(props: MarqueeTextProps): ReactNode {
     if (width !== viewportWidth) setViewportWidth(width);
   });
 
-  useEffect(() => {
+  // 选中态切换时要在绘制前清掉上一帧的横向偏移；普通 effect 会让非选中项短暂残留 1 列滚动。
+  useLayoutEffect(() => {
     const text = textRef.current;
     if (!text) return;
     text.scrollX = 0;

@@ -66,6 +66,32 @@ describe("double-click selection", () => {
     return createElement("box", { onMouseDown: selectTokenOnDoubleClick }, createElement(Transcript, props));
   }
 
+  test("messages use compact role markers instead of repeated author labels", async () => {
+    const setup = await createTestRenderer({ width: 60, height: 8, screenMode: "main-screen" });
+    const root = createRoot(setup.renderer);
+    mounted = { root, setup };
+    root.render(
+      createElement(Transcript, {
+        items: [
+          { type: "message", id: "user", role: "user", author: "you", text: "Hello", format: "plain" },
+          { type: "message", id: "agent", role: "agent", author: "codex", text: "Hi", format: "plain" },
+          { type: "block", id: "tool", kind: "tool", status: "completed", author: "claude", title: "Read" },
+        ],
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await setup.flush();
+
+    const visibleText = [...Renderable.renderablesByNumber.values()]
+      .filter((renderable): renderable is Renderable & { plainText: string } => "plainText" in renderable)
+      .map((renderable) => renderable.plainText);
+    expect(visibleText).toContain("✦  ");
+    expect(visibleText).toContain("●  ");
+    expect(visibleText.some((text) =>
+      text.includes("you >") || text.includes("codex >") || text.includes("claude ·")
+    )).toBe(false);
+  });
+
   test("double click expands OpenTUI's selection to the complete token", async () => {
     const setup = await createTestRenderer({ width: 60, height: 8, screenMode: "main-screen" });
     const root = createRoot(setup.renderer);
