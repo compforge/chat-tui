@@ -17,26 +17,33 @@ export interface BlockStatusDisplay {
   note?: string;
 }
 
-/** 无固有色的 outcome（pending / in_progress / 未知）跟 kind 走：思考是氛围信息故弱化，计划有自己的色。 */
-function kindColor(kind: string, theme: Theme): string {
+/** 无固有色的 outcome 跟 kind 走：思考有 author 时用 harness 认色，否则弱化；计划有自己的色。 */
+function kindColor(kind: string, author: string | undefined, theme: Theme): string {
+  if (kind === "thought" && author !== undefined) {
+    return theme.agentColorFor?.(author) ?? theme.agent;
+  }
   const byKind: Record<string, string> = { thought: theme.dim, plan: theme.plan };
   return byKind[kind] ?? theme.tool;
 }
 
-/** outcome → color：有结局的三态各有其色；pending / in_progress 无固有色，交给 kind 决定。 */
-function outcomeColor(status: string, kind: string, theme: Theme): string {
+/** outcome → color：失败/拒绝保留状态色；已完成的 thought 用 harness 认色，其余已完成块用 success。 */
+function outcomeColor(status: string, kind: string, author: string | undefined, theme: Theme): string {
   const byOutcome: Record<string, string> = {
     failed: theme.error,
     declined: theme.warning,
-    completed: theme.success,
+    completed:
+      kind === "thought" && author !== undefined
+        ? kindColor(kind, author, theme)
+        : theme.success,
   };
-  return byOutcome[status] ?? kindColor(kind, theme);
+  return byOutcome[status] ?? kindColor(kind, author, theme);
 }
 
 /**
- * activity block 的两根正交展示轴合成一次显示待遇（icon + color）：
+ * activity block 的展示轴合成一次显示待遇（icon + color）：
  * - **outcome**（`status`）：块的结果/生命周期，恒决定 **icon**（✓ 完成 / ✗ 失败 / ⊘ 拒批 / ○ 待定 / • 进行中）。
  * - **tone**（`tone`）：正交的"注意/留痕"轴，只覆盖 **color**——`warning` 用警示色。
+ * - **author**（`author`）：只为 thought 块的常规状态提供 harness 认色；失败、拒绝和警示色仍优先。
  *
  * 关键：tone 只改颜色、不改 icon。所以 completed+warning = ✓（结果仍是完成，不被遮成 ⚠）+ 警示色，
  * 而不是把结果丢成一个 warning——outcome 与 tone 各说各的，互不吞没。
@@ -53,6 +60,7 @@ export function blockStatus(
   tone: string | undefined,
   kind: string,
   theme: Theme,
+  author?: string,
 ): BlockStatusDisplay {
   const icon = OUTCOME_ICON[status];
   if (icon === undefined) {
@@ -60,6 +68,6 @@ export function blockStatus(
   }
   return {
     icon,
-    color: tone === "warning" ? theme.warning : outcomeColor(status, kind, theme),
+    color: tone === "warning" ? theme.warning : outcomeColor(status, kind, author, theme),
   };
 }

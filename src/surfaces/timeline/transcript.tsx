@@ -125,7 +125,7 @@ function renderDefault(
     );
   }
   if (item.kind === "thought" && !showThoughts) return null;
-  const { icon, color, note } = blockStatus(item.status, item.tone, item.kind, theme);
+  const { icon, color, note } = blockStatus(item.status, item.tone, item.kind, theme, item.author);
   const contents = item.content ? (Array.isArray(item.content) ? item.content : [item.content]) : [];
   const rich = contents.some(
     (content) => content.type === "code" || content.type === "command" || content.type === "diff",

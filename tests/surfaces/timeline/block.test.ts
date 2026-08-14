@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { blockStatus } from "../../../src/index.ts";
 import { defaultTheme as t } from "../../../src/index.ts";
 
-describe("blockStatus dual axis (outcome × tone)", () => {
+describe("blockStatus display axes (outcome × tone × author)", () => {
   test("icon comes from outcome (status)", () => {
     expect(blockStatus("failed", undefined, "tool", t).icon).toBe("✗");
     expect(blockStatus("declined", undefined, "tool", t).icon).toBe("⊘");
@@ -30,6 +30,23 @@ describe("blockStatus dual axis (outcome × tone)", () => {
     expect(blockStatus("pending", undefined, "thought", t).color).toBe(t.dim);
     expect(blockStatus("pending", undefined, "plan", t).color).toBe(t.plan);
     expect(blockStatus("in_progress", undefined, "tool", t).color).toBe(t.tool);
+  });
+
+  test("thought status follows its author color", () => {
+    const theme = {
+      ...t,
+      agentColorFor: (author: string) => author === "claude" ? "#claude" : undefined,
+    };
+    expect(blockStatus("completed", undefined, "thought", theme, "claude").color).toBe("#claude");
+    expect(blockStatus("in_progress", undefined, "thought", theme, "claude").color).toBe("#claude");
+    expect(blockStatus("completed", undefined, "thought", theme, "unknown").color).toBe(t.agent);
+  });
+
+  test("error and warning colors take priority over thought author color", () => {
+    const theme = { ...t, agentColorFor: () => "#author" };
+    expect(blockStatus("failed", undefined, "thought", theme, "claude").color).toBe(t.error);
+    expect(blockStatus("declined", undefined, "thought", theme, "claude").color).toBe(t.warning);
+    expect(blockStatus("completed", "warning", "thought", theme, "claude").color).toBe(t.warning);
   });
 
   test("unknown status is surfaced, never silently disguised as in_progress", () => {
