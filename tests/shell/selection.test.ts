@@ -177,6 +177,10 @@ describe("double-click selection", () => {
     root.render(createElement(ChatShell, { protocol, commands: [] }));
     await new Promise((resolve) => setTimeout(resolve, 0));
     await setup.flush();
+    const markdownBlocks = [...Renderable.renderablesByNumber.values()]
+      .filter((renderable): renderable is CodeRenderable => renderable instanceof CodeRenderable);
+    await Promise.all(markdownBlocks.map((renderable) => renderable.highlightingDone));
+    await setup.flush();
 
     const answer = [...Renderable.renderablesByNumber.values()].find(
       (renderable) =>
