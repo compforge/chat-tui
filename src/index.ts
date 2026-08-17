@@ -67,9 +67,11 @@ export * from "./surfaces/composer/commands.ts";
 export * from "./surfaces/composer/completion.ts";
 export * from "./surfaces/composer/keys.ts";
 export {
+  QueueSurface,
   QueuedList,
   InputArea,
   queuedPreview,
+  type QueueSurfaceProps,
   type QueuedListProps,
   type InputAreaProps,
 } from "./surfaces/composer/queued.tsx";

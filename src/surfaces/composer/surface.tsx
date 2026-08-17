@@ -28,7 +28,6 @@ import { Picker } from "./interactions/picker.tsx";
 import { Suggestions } from "./interactions/suggestions.tsx";
 import { useExitConfirmation } from "./exit-confirmation.ts";
 import { usePickerController } from "./picker-controller.ts";
-import { InputArea } from "./queued.tsx";
 import {
   INPUT_LAYER_PRIORITY,
   useInputBindings,
@@ -312,26 +311,23 @@ export const ComposerSurface = memo(function ComposerSurface(
 
   return (
     <>
-      <InputArea items={composerView.queued ?? []} theme={theme}>
-        <box
-          style={{
-            width: "100%",
-            flexShrink: 0,
-            marginTop: 1,
-            flexDirection: "column",
-          }}
-        >
-          <ComposerEditor
-            ref={composer}
-            placeholder={composerView.placeholder}
-            focused={!blockingInteraction && !choosingSuggestedInput && !picker}
-            busy={busy}
-            theme={theme}
-            onChange={handleComposerChange}
-            onSubmit={handleComposerSubmit}
-          />
-        </box>
-      </InputArea>
+      <box
+        style={{
+          width: "100%",
+          flexShrink: 0,
+          flexDirection: "column",
+        }}
+      >
+        <ComposerEditor
+          ref={composer}
+          placeholder={composerView.placeholder}
+          focused={!blockingInteraction && !choosingSuggestedInput && !picker}
+          busy={busy}
+          theme={theme}
+          onChange={handleComposerChange}
+          onSubmit={handleComposerSubmit}
+        />
+      </box>
 
       <Suggestions
         candidates={candidates}
