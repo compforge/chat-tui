@@ -63,8 +63,9 @@ bun examples/echo.tsx
 
 - **Persistent composer** — multi-line editing, slash commands, mentions, input history, queued follow-ups, and layered terminal key behavior
 - **Streaming timeline** — plain or Markdown messages, activity blocks, plans, code, commands, output, and diffs with display-only clipping
+- **Optional Parallel region** — current parallel work stays in compact items below the footer, outside the historical timeline
 - **Human interaction** — searchable pickers, permission decisions, structured questions, and suggested inputs anchored near the composer
-- **Independent Surfaces** — Timeline, Composer, Activity, Footer, and Sidecar subscribe only to the State they consume
+- **Independent Surfaces** — Timeline, Composer, Activity, Footer, optional Parallel, and Sidecar subscribe only to the State they consume
 - **Optional sidecar** — generic auxiliary State renders beside the main chat when space allows, or as an explicit overlay
 - **Composable UI** — use `ChatShell` for the complete interface or compose exported Surfaces and focused building blocks with an injectable theme
 - **Layered input routing** — components declare semantic behaviors in focus-aware layers; one matched behavior consumes a contested key
@@ -92,7 +93,7 @@ provider supports and how each operation maps to it.
 | Messages and activity | Plain/Markdown messages and open-ended activity blocks are display shapes, not provider events |
 | Streaming updates | Publish complete State snapshots; Store notifies only consumers of changed State |
 | Long content | Clipping is display-only. The harness always supplies complete content |
-| Status and plan | Activity, toast, footer, and plan labels are display-ready; lifecycle and visibility policy remain in the harness |
+| Status and plan | Activity, optional Parallel items, toast, footer, and plan labels are display-ready; lifecycle and visibility policy remain in the harness |
 | Auxiliary information | Sidecar accepts generic sections and items without understanding Board, context, or diagnostic semantics |
 
 ## Architecture at a glance

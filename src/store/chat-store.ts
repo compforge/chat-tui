@@ -21,10 +21,11 @@ export interface WritableChatStore extends ChatStore {
 export function createChatStore(
   initial: ChatState,
 ): WritableChatStore {
-  const cells: { [Key in keyof ChatState]: StateCell<ChatState[Key]> } = {
+  const cells: { [Key in keyof ChatState]-?: StateCell<ChatState[Key]> } = {
     timeline: createStateCell(initial.timeline),
     composer: createStateCell(initial.composer),
     activity: createStateCell(initial.activity),
+    parallel: createStateCell(initial.parallel),
     footer: createStateCell(initial.footer),
     sidecar: createStateCell(initial.sidecar),
   };
@@ -45,6 +46,7 @@ export function createChatStore(
     replace("timeline", patch.timeline);
     replace("composer", patch.composer);
     replace("activity", patch.activity);
+    replace("parallel", patch.parallel);
     replace("footer", patch.footer);
     replace("sidecar", patch.sidecar);
     if (changed.length === 0) return;
@@ -56,8 +58,8 @@ export function createChatStore(
   };
 
   return {
-    getState: <Key extends keyof ChatState>(key: Key) =>
-      cells[key].snapshot,
+    getState: <Key extends keyof ChatState>(key: Key): ChatState[Key] =>
+      cells[key].snapshot as ChatState[Key],
     subscribe: <Key extends keyof ChatState>(
       key: Key,
       onChange: () => void,

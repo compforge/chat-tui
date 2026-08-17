@@ -21,13 +21,14 @@ function initialState(): ChatState {
 describe("chat state store", () => {
   test("notifies only the channels changed by a commit", () => {
     const runtime = createChatStore(initialState());
-    const calls = { timeline: 0, composer: 0, activity: 0, footer: 0, sidecar: 0 };
+    const calls = { timeline: 0, composer: 0, activity: 0, parallel: 0, footer: 0, sidecar: 0 };
     const composerBefore = runtime.getState("composer");
     const timelineBefore = runtime.getState("timeline");
 
     runtime.subscribe("timeline", () => calls.timeline++);
     runtime.subscribe("composer", () => calls.composer++);
     runtime.subscribe("activity", () => calls.activity++);
+    runtime.subscribe("parallel", () => calls.parallel++);
     runtime.subscribe("footer", () => calls.footer++);
     runtime.subscribe("sidecar", () => calls.sidecar++);
 
@@ -41,6 +42,7 @@ describe("chat state store", () => {
       timeline: 0,
       composer: 0,
       activity: 0,
+      parallel: 0,
       footer: 0,
       sidecar: 1,
     });
@@ -72,18 +74,22 @@ describe("chat state store", () => {
     expect(observedRevision).toBe(1);
   });
 
-  test("keeps activity and footer State independently subscribable", () => {
+  test("keeps activity, parallel, and footer State independently subscribable", () => {
     const runtime = createChatStore(initialState());
-    const calls = { composer: 0, activity: 0, footer: 0 };
+    const calls = { composer: 0, activity: 0, parallel: 0, footer: 0 };
     runtime.subscribe("composer", () => calls.composer++);
     runtime.subscribe("activity", () => calls.activity++);
+    runtime.subscribe("parallel", () => calls.parallel++);
     runtime.subscribe("footer", () => calls.footer++);
 
     runtime.commit({ activity: { items: [{ id: "primary", label: "running" }] } });
-    expect(calls).toEqual({ composer: 0, activity: 1, footer: 0 });
+    expect(calls).toEqual({ composer: 0, activity: 1, parallel: 0, footer: 0 });
+
+    runtime.commit({ parallel: { items: [{ id: "worker", name: "reviewer" }] } });
+    expect(calls).toEqual({ composer: 0, activity: 1, parallel: 1, footer: 0 });
 
     runtime.commit({ footer: { text: "tokens: 42" } });
-    expect(calls).toEqual({ composer: 0, activity: 1, footer: 1 });
+    expect(calls).toEqual({ composer: 0, activity: 1, parallel: 1, footer: 1 });
   });
 
   test("keeps composer State cold during repeated sidecar State updates", () => {
