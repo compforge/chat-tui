@@ -14,9 +14,9 @@
 │ TimelineSurface                    │ SidecarSurface      │
 │   Transcript      可滚动历史（过去时）│   辅助信息           │
 │   [Plan]          进行中的计划       │   section / item    │
+│ ActivitySurface   主执行线当前状态    │                     │
 │ ComposerSurface                    │                     │
 │   [Queued]        待执行输入（将来时）│                     │
-│   ActivitySurface 当前运行状态       │                     │
 │   ComposerEditor  持续可编辑输入区    │                     │
 │   [Interaction Dock] 补全/选择/审批  │                     │
 │ FooterSurface                      │                     │
@@ -49,6 +49,12 @@ name、description、progress、tokens 与起始时间组成；chat-tui 不判�
 Harness 还是异步 task。没有 State 或 item 为空时不占空间，完成后的可回看结果由接入方移入
 Timeline，避免当前区域无限增长。
 
+## ActivitySurface
+
+Activity 是 Composer 上方唯一的主执行线状态区，描述当前输入目标与运行相位；Composer 自身不再
+拥有另一份 run status。Activity 保持独立 State 与渲染边界，避免高频状态刷新重建输入 buffer。
+chat-tui 只展示接入方提供的标签和时间信息，不推断 agent 生命周期。
+
 ## ComposerSurface
 
 Composer 位于历史区下方，是供用户持续组织和修改输入的创作面，不是只在 agent 空闲时开放的
@@ -65,11 +71,6 @@ Composer 位于历史区下方，是供用户持续组织和修改输入的创�
 
 Queued 展示等待执行的输入，是将来时区域；队列本体、顺序和召回语义归 harness。召回后的内容
 回到 Composer 继续编辑，空队列不占空间。
-
-### ActivitySurface
-
-Activity 在视觉上贴近输入框，描述当前输入目标和运行相位，但保持独立渲染边界。它只展示
-接入方提供的标签和时间信息，不推断 agent 生命周期。
 
 ### Interaction Dock
 

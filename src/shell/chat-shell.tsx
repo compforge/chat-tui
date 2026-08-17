@@ -1,4 +1,4 @@
-// ChatShell：把 ChatProtocol 接到五个独立 Surface，并编排全局布局与文本选择。
+// ChatShell：把 ChatProtocol 接到独立 Surface，并编排全局布局与文本选择。
 
 import {
   useRenderer,
@@ -13,6 +13,7 @@ import type { ChatProtocol } from "../protocol/chat-protocol.ts";
 import type { CommandSpec } from "../protocol/command.ts";
 import { InputProvider } from "../input/keyboard.tsx";
 import type { ToastMessage } from "../state/footer.ts";
+import { ActivitySurface } from "../surfaces/activity/surface.tsx";
 import { ParallelSurface } from "../surfaces/parallel/surface.tsx";
 import { ComposerSurface } from "../surfaces/composer/surface.tsx";
 import type { Candidate } from "../surfaces/composer/completion.ts";
@@ -68,6 +69,7 @@ function ChatShellContent(props: ChatShellProps): ReactNode {
           theme={theme}
           clipPolicy={props.clipPolicy}
         />
+        <ActivitySurface store={store} theme={theme} />
         <ComposerSurface
           protocol={protocol}
           store={store}

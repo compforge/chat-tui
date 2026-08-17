@@ -40,7 +40,6 @@ import type { ToastMessage } from "../../state/footer.ts";
 import type { ChatStore } from "../../store/chat-store.ts";
 import { useStoreState } from "../../store/react.ts";
 import { type Theme } from "../../theme.ts";
-import { ActivitySurface } from "../activity/surface.tsx";
 
 const CTRL_C_EXIT_HINT = "Press Ctrl+C again to exit";
 const CTRL_C_CLEARED_HINT = "Draft cleared; press Ctrl+C again to exit";
@@ -322,10 +321,6 @@ export const ComposerSurface = memo(function ComposerSurface(
             flexDirection: "column",
           }}
         >
-          <ActivitySurface
-            store={props.store}
-            theme={theme}
-          />
           <ComposerEditor
             ref={composer}
             placeholder={composerView.placeholder}

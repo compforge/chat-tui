@@ -48,8 +48,8 @@ harness 先把自身事件整理成当前应展示的 State，再通过 Store �
 | Surface | 消费的 State | 职责 |
 |---|---|---|
 | `TimelineSurface` | `timeline` | 历史消息、活动块与当前计划 |
-| `ComposerSurface` | `composer`、`sidecar` 的布局 selector | 输入、补全与待处理交互 |
-| `ActivitySurface` | `activity` | 当前输入目标与运行状态 |
+| `ActivitySurface` | `activity` | Composer 上方唯一的主执行线当前状态区 |
+| `ComposerSurface` | `composer`、`sidecar` 的布局 selector | 输入、补全与待处理交互，不重复承载运行状态 |
 | `FooterSurface` | `footer` | 短寿命回执与常驻状态 |
 | `ParallelSurface` | `parallel` | Footer 下方可选的当前并行工作区 |
 | `SidecarSurface` | `sidecar` | 与主时间线并列的辅助信息 |
