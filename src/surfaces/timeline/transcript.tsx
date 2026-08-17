@@ -10,6 +10,8 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import type {
   TranscriptBlockContent,
+  TranscriptBlockItem,
+  TranscriptGroupItem,
   TranscriptItem,
 } from "../../state/timeline.ts";
 import {
@@ -124,6 +126,50 @@ function renderDefault(
       </box>
     );
   }
+  if (item.type === "group") {
+    return renderGroup(item, theme, syntaxStyle, showThoughts, clip);
+  }
+  return renderBlock(item, theme, syntaxStyle, showThoughts, clip);
+}
+
+function renderGroup(
+  item: TranscriptGroupItem,
+  theme: Theme,
+  syntaxStyle: SyntaxStyle,
+  showThoughts: boolean,
+  clip: ClipContext,
+): ReactNode {
+  const summary = item.summary;
+  const collapsed = item.collapsedByDefault === true && !clip.expanded;
+  if (collapsed && summary) {
+    return (
+      <box key={item.id} style={{ flexDirection: "column" }}>
+        {renderBlock(summary, theme, syntaxStyle, showThoughts, clip)}
+      </box>
+    );
+  }
+
+  // A singleton group is a stable render container, not another visible row.
+  // Once multiple members are revealed, keep the summary as their group heading.
+  return (
+    <box key={item.id} style={{ flexDirection: "column" }}>
+      {summary && item.members.length > 1
+        ? renderBlock(summary, theme, syntaxStyle, showThoughts, clip)
+        : null}
+      {item.members.map((member) =>
+        renderBlock(member, theme, syntaxStyle, showThoughts, clip)
+      )}
+    </box>
+  );
+}
+
+function renderBlock(
+  item: TranscriptBlockItem,
+  theme: Theme,
+  syntaxStyle: SyntaxStyle,
+  showThoughts: boolean,
+  clip: ClipContext,
+): ReactNode {
   if (item.kind === "thought" && !showThoughts) return null;
   const { icon, color, toneIcon, note } = blockStatus(
     item.status,
@@ -132,7 +178,9 @@ function renderDefault(
     theme,
     item.author,
   );
-  const contents = item.content ? (Array.isArray(item.content) ? item.content : [item.content]) : [];
+  const contents = item.content
+    ? (Array.isArray(item.content) ? item.content : [item.content])
+    : [];
   const rich = contents.some(
     (content) => content.type === "code" || content.type === "command" || content.type === "diff",
   );

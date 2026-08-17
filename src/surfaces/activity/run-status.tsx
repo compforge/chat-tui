@@ -15,7 +15,7 @@ export interface RunStatusProps {
 /**
  * ActivitySurface 的状态行："现在时"信息，视觉上贴 composer 顶部但独立订阅。
  * author 着色沿用 theme.agentColorFor，与 transcript 的作者名同源同色；空列表不占高度。
- * 外层间距归 Composer 的分组容器，这里不带 margin。
+ * 非空时在上方保留一行，避免 Plan 和 Queue 都缺席时贴住 transcript。
  */
 export function RunStatus(props: RunStatusProps): ReactNode {
   const theme = props.theme ?? defaultTheme;
@@ -31,7 +31,15 @@ export function RunStatus(props: RunStatusProps): ReactNode {
   if (props.items.length === 0) return null;
   return (
     // 终端没有稳定的半行间距；连续字符行已有自然行高，rowGap: 1 会额外插入一整行空白。
-    <box style={{ flexDirection: "column", flexShrink: 0, paddingLeft: 1, paddingRight: 1 }}>
+    <box
+      style={{
+        flexDirection: "column",
+        flexShrink: 0,
+        marginTop: 1,
+        paddingLeft: 1,
+        paddingRight: 1,
+      }}
+    >
       {props.items.map((item) => {
         const [label, ...details] = runStatusParts(item, now);
         const marker = item.startedAt === undefined ? "•" : runStatusSpinner(now);
