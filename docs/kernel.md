@@ -48,6 +48,7 @@ harness 先把自身事件整理成当前应展示的 State，再通过 Store �
 | Surface | 消费的 State | 职责 |
 |---|---|---|
 | `TimelineSurface` | `timeline` | 历史消息、活动块与当前计划 |
+| `QueueSurface` | `composer` | Activity 上方可选的待执行输入区 |
 | `ActivitySurface` | `activity` | Composer 上方唯一的主执行线当前状态区 |
 | `ComposerSurface` | `composer`、`sidecar` 的布局 selector | 输入、补全与待处理交互，不重复承载运行状态 |
 | `FooterSurface` | `footer` | 短寿命回执与常驻状态 |

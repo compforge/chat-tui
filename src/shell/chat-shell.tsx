@@ -17,6 +17,7 @@ import { ActivitySurface } from "../surfaces/activity/surface.tsx";
 import { ParallelSurface } from "../surfaces/parallel/surface.tsx";
 import { ComposerSurface } from "../surfaces/composer/surface.tsx";
 import type { Candidate } from "../surfaces/composer/completion.ts";
+import { QueueSurface } from "../surfaces/composer/queued.tsx";
 import { FooterSurface } from "../surfaces/footer/surface.tsx";
 import { SidecarSurface } from "../surfaces/sidecar/surface.tsx";
 import type { ClipPolicy } from "../surfaces/timeline/clip.ts";
@@ -69,6 +70,7 @@ function ChatShellContent(props: ChatShellProps): ReactNode {
           theme={theme}
           clipPolicy={props.clipPolicy}
         />
+        <QueueSurface store={store} theme={theme} />
         <ActivitySurface store={store} theme={theme} />
         <ComposerSurface
           protocol={protocol}

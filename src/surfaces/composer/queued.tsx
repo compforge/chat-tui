@@ -1,6 +1,8 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 
 import type { QueuedItem } from "../../state/composer.ts";
+import type { ChatStore } from "../../store/chat-store.ts";
+import { useStoreState } from "../../store/react.ts";
 import { defaultTheme, type Theme } from "../../theme.ts";
 
 /** 队列条目的三行预览（↳ 首行缩进，超出折叠为 …） */
@@ -35,13 +37,40 @@ export function QueuedList(props: QueuedListProps): ReactNode {
   );
 }
 
+export interface QueueSurfaceProps {
+  store: ChatStore;
+  theme: Theme;
+}
+
+/** 可选的将来时区域；由 ChatShell 放在 Activity 之前，空队列不占高度。 */
+export const QueueSurface = memo(function QueueSurface(
+  props: QueueSurfaceProps,
+): ReactNode {
+  const composer = useStoreState(props.store, "composer");
+  const items = composer.queued ?? [];
+  if (items.length === 0) return null;
+  return (
+    <box
+      style={{
+        flexDirection: "row",
+        flexShrink: 0,
+        paddingLeft: 1,
+        paddingRight: 1,
+        marginTop: 1,
+      }}
+    >
+      <QueuedList items={items} theme={props.theme} />
+    </box>
+  );
+});
+
 export interface InputAreaProps {
   items: QueuedItem[];
   theme?: Theme;
   children: ReactNode;
 }
 
-/** Queued 和 Composer 的共享容器；没有 queued items 时只渲染 composer。 */
+/** 自定义组合用的 Queue + children 容器；默认 ChatShell 由 QueueSurface 单独编排。 */
 export function InputArea(props: InputAreaProps): ReactNode {
   const theme = props.theme ?? defaultTheme;
   const hasQueued = props.items.length > 0;

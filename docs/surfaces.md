@@ -14,9 +14,9 @@
 │ TimelineSurface                    │ SidecarSurface      │
 │   Transcript      可滚动历史（过去时）│   辅助信息           │
 │   [Plan]          进行中的计划       │   section / item    │
+│ [QueueSurface]    待执行输入（将来时）│                     │
 │ ActivitySurface   主执行线当前状态    │                     │
 │ ComposerSurface                    │                     │
-│   [Queued]        待执行输入（将来时）│                     │
 │   ComposerEditor  持续可编辑输入区    │                     │
 │   [Interaction Dock] 补全/选择/审批  │                     │
 │ FooterSurface                      │                     │
@@ -67,10 +67,11 @@ Composer 位于历史区下方，是供用户持续组织和修改输入的创�
 3. **无关 State 更新不影响输入**：Sidecar、Parallel、Activity 或 Footer 刷新不得让 Composer 重建
    输入 buffer；只有 Composer 真正依赖的布局或输入状态变化才参与更新。
 
-### Queued input
+## QueueSurface
 
-Queued 展示等待执行的输入，是将来时区域；队列本体、顺序和召回语义归 harness。召回后的内容
-回到 Composer 继续编辑，空队列不占空间。
+Queue 展示等待执行的输入，是 Activity 之前的可选将来时区域；队列本体、顺序和召回语义归
+harness。Queue 仍消费 Composer State 中的 queued items，但拥有独立渲染边界；召回后的内容回到
+Composer 继续编辑，空队列不占空间。
 
 ### Interaction Dock
 
