@@ -62,7 +62,7 @@ bun examples/echo.tsx
 ## What you get
 
 - **Persistent composer** — multi-line editing, slash commands, mentions, input history, queued follow-ups, and layered terminal key behavior
-- **Streaming timeline** — plain or Markdown messages, activity blocks, plans, code, commands, output, and diffs with display-only clipping
+- **Streaming timeline** — plain or Markdown messages, stable render groups, activity blocks, plans, code, commands, output, and diffs with display-only clipping
 - **Optional Parallel region** — current parallel work stays in compact items below the footer, outside the historical timeline
 - **Human interaction** — searchable pickers, permission decisions, structured questions, and suggested inputs anchored near the composer
 - **Independent Surfaces** — Timeline, Composer, Activity, Footer, optional Parallel, and Sidecar subscribe only to the State they consume

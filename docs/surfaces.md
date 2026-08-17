@@ -28,7 +28,7 @@
 
 ## TimelineSurface
 
-Timeline 是可滚动的过去时区域，接收 message 与 activity block 两类展示数据。接入方负责把
+Timeline 是可滚动的过去时区域，接收 message、activity block 与 render group 三类展示数据。接入方负责把
 自身事件整理成可展示内容，chat-tui 不解释 provider 语义。
 
 - activity block 的 `status` 表示结果，决定 icon；`tone` 表示注意或留痕，影响颜色但不改变
@@ -36,6 +36,10 @@ Timeline 是可滚动的过去时区域，接收 message 与 activity block 两�
 - 未知状态不得静默伪装成某个已知结果，必须显式保留异常值。
 - 消息来源与正文格式分离：role / author 只表达谁在说话，format 独立表达 plain / markdown。
 - 长内容按视觉行预算折叠，diff 默认完整展示；裁剪不修改接入方传入的数据。
+- 接入方可用带稳定 ID 的 `TranscriptGroupItem` 收纳完整 `TranscriptBlockItem`，并声明默认收起；
+  chat-tui 只负责一行摘要与 Ctrl+O 展开，不判断哪些相邻事实应该合并。首成员出现时就创建 group，
+  后续只追加 member 并更新摘要，避免流式过程中改变顶层节点类型。group 的成员仅允许 block，不能
+  继续嵌套 group；不提供摘要的 group 是透明容器，不额外占用展示行。
 
 ### Plan
 

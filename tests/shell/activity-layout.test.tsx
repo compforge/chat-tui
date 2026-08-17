@@ -19,6 +19,48 @@ afterEach(() => {
 });
 
 describe("ChatShell activity layout", () => {
+  test("keeps a blank row between transcript and activity when plan and queue are empty", async () => {
+    const setup = await createTestRenderer({ width: 80, height: 10, screenMode: "main-screen" });
+    const root = createRoot(setup.renderer);
+    mounted = { root, setup };
+    const protocol: ChatProtocol = {
+      stateStore: createChatStore({
+        timeline: {
+          items: [{
+            type: "message",
+            id: "last-message",
+            role: "agent",
+            text: "last transcript line",
+          }],
+        },
+        composer: {},
+        activity: { items: [{ id: "main", author: "codex", label: "thinking…" }] },
+        footer: {},
+        sidecar: undefined,
+      }),
+      submit: () => {},
+      command: () => {},
+      cancel: () => {},
+      exit: () => {},
+      resolvePicker: () => {},
+      searchPicker: () => {},
+      resolveInteraction: () => {},
+    };
+    root.render(createElement(ChatShell, { protocol, commands: [] }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await setup.flush();
+
+    const transcript = [...Renderable.renderablesByNumber.values()].find(
+      (renderable) => "plainText" in renderable && renderable.plainText === "last transcript line",
+    );
+    const status = [...Renderable.renderablesByNumber.values()].find(
+      (renderable) => "plainText" in renderable && renderable.plainText === "thinking…",
+    );
+    expect(transcript).toBeDefined();
+    expect(status).toBeDefined();
+    expect(status!.y - transcript!.y).toBeGreaterThanOrEqual(2);
+  });
+
   test("keeps the main status directly above the composer", async () => {
     const setup = await createTestRenderer({ width: 80, height: 10, screenMode: "main-screen" });
     const root = createRoot(setup.renderer);
