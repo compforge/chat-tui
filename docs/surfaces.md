@@ -2,8 +2,8 @@
 
 ## 理念
 
-主对话自上而下按信息的时态与寿命分层：过去的信息进入可滚动时间线，当前状态靠近输入区，
-短寿命回执固定在底部。可选 Sidecar 与主对话并列，承载跨时间线的辅助信息。
+主对话自上而下按信息的时态与寿命分层：过去的信息进入可滚动时间线，主线当前状态靠近输入区，
+短寿命回执进入 Footer，可选的并行工作区位于最下方。Sidecar 与主对话并列，承载跨时间线的辅助信息。
 
 展示可以压缩信息，但不能改写事实；不同维度保持正交，未知输入显式暴露，裁剪只影响当前
 视图。State、Store 与 Surface 的关系由 [`kernel.md`](kernel.md) 统一定义。带方括号的区块
@@ -22,6 +22,7 @@
 │ FooterSurface                      │                     │
 │   [Toast]         短寿命操作回执     │                     │
 │   Footer text     常驻状态           │                     │
+│ [ParallelSurface] 可选并行工作区      │                     │
 └────────────────────────────────────┴─────────────────────┘
 ```
 
@@ -41,6 +42,13 @@ Timeline 是可滚动的过去时区域，接收 message 与 activity block 两�
 当前计划固定在 Timeline 尾部、Composer 之前；空计划不占空间。是否展示及何时撤下由
 harness 决定，窗口始终优先保持当前进度可见。
 
+## ParallelSurface
+
+Parallel 是 Footer 下方可选的“现在时”区域，承载仍在推进的并行工作。每个 item 由通用的 icon、
+name、description、progress、tokens 与起始时间组成；chat-tui 不判断它来自 agent、某条 Lane 的
+Harness 还是异步 task。没有 State 或 item 为空时不占空间，完成后的可回看结果由接入方移入
+Timeline，避免当前区域无限增长。
+
 ## ComposerSurface
 
 Composer 位于历史区下方，是供用户持续组织和修改输入的创作面，不是只在 agent 空闲时开放的
@@ -50,7 +58,7 @@ Composer 位于历史区下方，是供用户持续组织和修改输入的创�
    输入；外部更新不得抢焦点、覆盖或清空 draft。
 2. **多行是输入语义的一部分**：换行、光标位置和未提交内容必须完整保留，补全、历史和队列
    召回不能意外归一化它们。
-3. **无关 State 更新不影响输入**：Sidecar、Activity 或 Footer 刷新不得让 Composer 重建
+3. **无关 State 更新不影响输入**：Sidecar、Parallel、Activity 或 Footer 刷新不得让 Composer 重建
    输入 buffer；只有 Composer 真正依赖的布局或输入状态变化才参与更新。
 
 ### Queued input

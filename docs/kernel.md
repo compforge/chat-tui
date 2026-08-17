@@ -35,7 +35,7 @@ harness 先把自身事件整理成当前应展示的 State，再通过 Store �
 
 ### State 与 Store
 
-- `stateStore` 发布 `timeline`、`composer`、`activity`、`footer`、`sidecar` 五个稳定
+- `stateStore` 发布 `timeline`、`composer`、`activity`、`footer`、`parallel`、`sidecar` 六个稳定
   State。未变化的 State 保持引用不变，也不通知订阅者。
 - `commit(patch)` 是原子提交：多路新快照先全部可见，再通知发生变化的 State。
 - State 是展示数据，不是上游事件。接入方保有业务真相源和 durable lifecycle，chat-tui
@@ -51,10 +51,11 @@ harness 先把自身事件整理成当前应展示的 State，再通过 Store �
 | `ComposerSurface` | `composer`、`sidecar` 的布局 selector | 输入、补全与待处理交互 |
 | `ActivitySurface` | `activity` | 当前输入目标与运行状态 |
 | `FooterSurface` | `footer` | 短寿命回执与常驻状态 |
+| `ParallelSurface` | `parallel` | Footer 下方可选的当前并行工作区 |
 | `SidecarSurface` | `sidecar` | 与主时间线并列的辅助信息 |
 
-`ChatShell` 只编排 Surface，不订阅具体 State。Sidecar 内容刷新时，只有订阅到新值的 Surface
-参与更新；布局没有变化时，Composer 及其输入 buffer 不参与刷新。
+`ChatShell` 只编排 Surface，不订阅具体 State。Parallel 或 Sidecar 内容刷新时，只有
+订阅到新值的 Surface 参与更新；布局没有变化时，Composer 及其输入 buffer 不参与刷新。
 
 ### Intent 与注入点
 

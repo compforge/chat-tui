@@ -4,6 +4,7 @@ export * from "./state/chat.ts";
 export * from "./state/timeline.ts";
 export * from "./state/composer.ts";
 export * from "./state/activity.ts";
+export * from "./state/parallel.ts";
 export * from "./state/footer.ts";
 export * from "./state/sidecar.ts";
 export * from "./protocol/chat-protocol.ts";
@@ -106,6 +107,15 @@ export {
   ActivitySurface,
   type ActivitySurfaceProps,
 } from "./surfaces/activity/surface.tsx";
+export {
+  ParallelSurface,
+  type ParallelSurfaceProps,
+} from "./surfaces/parallel/surface.tsx";
+export {
+  Parallel,
+  parallelItemDetails,
+  type ParallelProps,
+} from "./surfaces/parallel/parallel.tsx";
 export {
   RunStatus,
   runStatusParts,

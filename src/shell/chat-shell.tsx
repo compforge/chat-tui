@@ -13,6 +13,7 @@ import type { ChatProtocol } from "../protocol/chat-protocol.ts";
 import type { CommandSpec } from "../protocol/command.ts";
 import { InputProvider } from "../input/keyboard.tsx";
 import type { ToastMessage } from "../state/footer.ts";
+import { ParallelSurface } from "../surfaces/parallel/surface.tsx";
 import { ComposerSurface } from "../surfaces/composer/surface.tsx";
 import type { Candidate } from "../surfaces/composer/completion.ts";
 import { FooterSurface } from "../surfaces/footer/surface.tsx";
@@ -80,6 +81,7 @@ function ChatShellContent(props: ChatShellProps): ReactNode {
           localToast={localToast}
           theme={theme}
         />
+        <ParallelSurface store={store} theme={theme} />
       </box>
 
       <SidecarSurface

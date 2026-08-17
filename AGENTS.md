@@ -15,11 +15,11 @@ chat-tui 是终端 chat/agent 界面的**组件层**（基于 opentui + react）
 chat-tui/
 ├── src/
 │   ├── index.ts             # 唯一对外入口（package exports 直指 TS 源码，无构建步骤）
-│   ├── state/               # 五个 State 的公开数据形状；纯 TypeScript，不依赖 React/OpenTUI
+│   ├── state/               # 六个 State 的公开数据形状；纯 TypeScript，不依赖 React/OpenTUI
 │   ├── store/               # Store 契约、ChatStore 实现与 React 订阅桥
 │   ├── protocol/            # ChatProtocol 与 TUI → harness 的 intent 契约
 │   ├── shell/               # ChatShell 组合与全局文本选择；不订阅具体 State
-│   ├── surfaces/            # Timeline / Composer / Activity / Footer / Sidecar
+│   ├── surfaces/            # Timeline / Composer / Activity / Footer / Parallel / Sidecar
 │   │   └── <surface>/       # Surface、组件和纯逻辑按同一界面领域内聚
 │   ├── terminal/            # 显示宽度、换行与时间格式等终端原语
 │   └── theme.ts             # Theme 契约与默认主题
