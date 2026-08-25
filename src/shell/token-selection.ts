@@ -49,8 +49,9 @@ export function useTokenSelectionOnDoubleClick(): (event: MouseEvent) => void {
     if (!range || range.end <= range.start) return;
 
     // OpenTUI 已在 mouse-down 建立单字符选区；第二击将它扩成 token，mouse-up 仍走
-    // 框架原生 finishSelection，从而保留高亮并触发现有 OSC52 复制回调。
+    // 框架原生 finishSelection，从而保留高亮并触发现有 OSC52 复制回调。0.5.7 起
+    // cell occupancy 包含 focus cell，因此 exclusive end 要回退到 token 最后一个 cell。
     renderer.startSelection(target, target.x + range.start, event.y);
-    renderer.updateSelection(target, target.x + range.end, event.y);
+    renderer.updateSelection(target, target.x + range.end - 1, event.y);
   };
 }
