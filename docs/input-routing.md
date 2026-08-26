@@ -48,12 +48,23 @@ InteractionDock、Picker、Suggestions、Question editor 等组件声明自己�
 1. `application`：应用兜底行为；
 2. `surface`：Composer、Transcript 等常驻区域；
 3. `popup`：补全和 Picker；
-4. `modal`：阻塞 Interaction；
+4. `modal`：阻塞 Interaction 与 QueuePane；
 5. `editing`：Modal 内部的临时编辑模式；
 6. `overlay`：视觉上覆盖整页的 Sidecar 等应用浮层。
 
 能够同时活跃且争用同一按键的 context 必须使用不同层级；不能依赖 React effect 或 handler
 注册顺序决定胜负。只有确实希望多个行为连续执行时才显式使用 keymap 的 fallthrough。
+
+### 键位的单一事实来源
+
+所有默认键位收敛在 `src/input/keybinds.ts` 的 `defaultKeybinds` 定义表：action → 默认键 +
+desc/group 元数据。组件不再硬编码键位字符串，而是经 `layerBindings()`（keymap 层语义
+command）或 `editorKeyBindings()`（textarea 编辑动作，如 submit/newline）从表取默认绑定；
+分层路由语义（哪层消费、Esc 冒泡）仍归组件，表里只有键与元数据。
+
+接入方可构造 `KeybindOverrides`（action → 替换键，null 解绑）传给 `InputProvider`（或
+`ChatShell` 的 `keybinds` prop）做用户级覆盖；override 按 action 粒度替换全部默认键。
+chat-tui 不读取配置文件。定义表类型与默认值从根 `index.ts` 导出，接入方可用来生成帮助。
 
 ### Cancel 是语义，不是按键
 
@@ -67,6 +78,7 @@ Interaction view 通过 `cancelResponse` 声明取消应映射到某个 reject o
 Question Other 编辑 ─cancel→ 返回选项
 Picker 查询         ─cancel→ 清空查询
 Picker              ─cancel→ resolvePicker(id, null)
+QueuePane           ─cancel→ resolveQueue({ kind: "close" })
 Interaction         ─cancel→ resolveInteraction(id, cancelResponse)
 running turn        ─cancel→ ChatProtocol.cancel()
 ```

@@ -4,7 +4,9 @@ import { memo, type ReactNode } from "react";
 import {
   INPUT_LAYER_PRIORITY,
   useInputBindings,
+  useKeybindOverrides,
 } from "../../input/keyboard.tsx";
+import { layerBindings } from "../../input/keybinds.ts";
 import { Sidecar } from "./sidecar.tsx";
 import type { ChatStore } from "../../store/chat-store.ts";
 import { useStoreState } from "../../store/react.ts";
@@ -23,6 +25,7 @@ export const SidecarSurface = memo(function SidecarSurface(
   const terminal = useTerminalDimensions();
   const state = useStoreState(props.store, "sidecar");
   const layout = sidecarLayout(state, terminal.width);
+  const keybinds = useKeybindOverrides();
   useInputBindings(() => ({
     priority: INPUT_LAYER_PRIORITY.overlay,
     commands: [{
@@ -32,13 +35,8 @@ export const SidecarSurface = memo(function SidecarSurface(
         props.onDismiss();
       },
     }],
-    bindings: [{
-      key: "escape",
-      desc: "Close sidecar",
-      group: "Sidecar",
-      cmd: "sidecar.dismiss",
-    }],
-  }));
+    bindings: layerBindings(["sidecar.dismiss"], keybinds),
+  }), [keybinds]);
 
   if (!state || layout === "hidden") return null;
   if (layout === "inline") {

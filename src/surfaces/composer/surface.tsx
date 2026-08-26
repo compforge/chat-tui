@@ -26,22 +26,22 @@ import {
 import { InteractionDock } from "./interactions/dock.tsx";
 import { Picker } from "./interactions/picker.tsx";
 import { Suggestions } from "./interactions/suggestions.tsx";
+import { QueuePane } from "./queued.tsx";
 import { useExitConfirmation } from "./exit-confirmation.ts";
 import { usePickerController } from "./picker-controller.ts";
 import {
   INPUT_LAYER_PRIORITY,
   useInputBindings,
+  useKeybindOverrides,
 } from "../../input/keyboard.tsx";
-import type { ChatProtocol } from "../../protocol/chat-protocol.ts";
+import { keybindHint, layerBindings } from "../../input/keybinds.ts";
+import type { ChatProtocol, QueueIntent } from "../../protocol/chat-protocol.ts";
 import type { CommandSpec } from "../../protocol/command.ts";
 import type { InteractionView } from "../../state/composer.ts";
 import type { ToastMessage } from "../../state/footer.ts";
 import type { ChatStore } from "../../store/chat-store.ts";
 import { useStoreState } from "../../store/react.ts";
 import { type Theme } from "../../theme.ts";
-
-const CTRL_C_EXIT_HINT = "Press Ctrl+C again to exit";
-const CTRL_C_CLEARED_HINT = "Draft cleared; press Ctrl+C again to exit";
 
 export interface ComposerSurfaceProps {
   protocol: ChatProtocol;
@@ -58,6 +58,7 @@ export const ComposerSurface = memo(function ComposerSurface(
   const { protocol } = props;
   const theme = props.theme;
   const composerView = useStoreState(props.store, "composer");
+  const queueView = useStoreState(props.store, "queue");
   const setLocalToast = props.setLocalToast;
 
   const [draft, setDraft] = useState("");
@@ -93,13 +94,14 @@ export const ComposerSurface = memo(function ComposerSurface(
   const choosingSuggestedInput =
     activeInteraction?.kind === "suggested_input" && !draft;
   const picker = composerView.picker ?? null;
+  const queueManager = queueView?.manager ?? null;
   const searchPicker = useCallback(
     (id: string, query: string) => protocol.searchPicker(id, query),
     [protocol],
   );
   const pickerController = usePickerController(picker, searchPicker);
   const candidates =
-    trigger && !suggDismissed && !blockingInteraction && !picker
+    trigger && !suggDismissed && !blockingInteraction && !picker && !queueManager
       ? buildCandidates(trigger, { commands: props.commands, mentions: props.mentions })
       : [];
   const sel = candidates.length ? Math.min(suggIdx, candidates.length - 1) : 0;
@@ -107,7 +109,7 @@ export const ComposerSurface = memo(function ComposerSurface(
   // 焦点安全网：浮层都关闭时确保焦点回到输入框。focused prop 只在值变化时生效，
   // 覆盖不到"焦点被别处拿走但 prop 没变"的场景；focus() 对已聚焦者是 no-op，代价可忽略。
   useEffect(() => {
-    if (!blockingInteraction && !choosingSuggestedInput && !picker) {
+    if (!blockingInteraction && !choosingSuggestedInput && !picker && !queueManager) {
       composer.current?.focus();
     }
   });
@@ -167,6 +169,9 @@ export const ComposerSurface = memo(function ComposerSurface(
   );
 
   const busy = composerView.busy ?? false;
+  const keybinds = useKeybindOverrides();
+  const clearOrExitHint =
+    keybindHint("composer.clear-or-exit", keybinds) ?? "the exit key";
   useInputBindings(() => ({
     priority: INPUT_LAYER_PRIORITY.surface,
     commands: [
@@ -179,11 +184,13 @@ export const ComposerSurface = memo(function ComposerSurface(
             releaseEditingSuggestion();
             resetComposer();
             setSuggIdx(0);
-            exitConfirmation.arm(CTRL_C_CLEARED_HINT);
+            exitConfirmation.arm(
+              `Draft cleared; press ${clearOrExitHint} again to exit`,
+            );
           } else if (action === "exit") {
             void protocol.exit();
           } else {
-            exitConfirmation.arm(CTRL_C_EXIT_HINT);
+            exitConfirmation.arm(`Press ${clearOrExitHint} again to exit`);
           }
         },
       },
@@ -265,15 +272,18 @@ export const ComposerSurface = memo(function ComposerSurface(
         },
       },
     ],
-    bindings: [
-      { key: "ctrl+c", cmd: "composer.clear-or-exit" },
-      { key: "ctrl+d", cmd: "composer.exit-eof" },
-      { key: "shift+tab", cmd: "composer.cycle-mode" },
-      { key: "escape", cmd: "turn.cancel" },
-      { key: "up", cmd: "composer.history-previous" },
-      { key: "down", cmd: "composer.history-next" },
-    ],
-  }));
+    bindings: layerBindings(
+      [
+        "composer.clear-or-exit",
+        "composer.exit-eof",
+        "composer.cycle-mode",
+        "turn.cancel",
+        "composer.history-previous",
+        "composer.history-next",
+      ],
+      keybinds,
+    ),
+  }), [keybinds]);
 
   const acceptSuggestion = useCallback(
     (key: "tab" | "enter") => {
@@ -285,7 +295,7 @@ export const ComposerSurface = memo(function ComposerSurface(
         void send(accepted.text);
       } else {
         setDraft(accepted.text);
-        composer.current?.setText(accepted.text);
+        composer.current?.editText(accepted.text);
         setSuggIdx(0);
       }
     },
@@ -308,6 +318,48 @@ export const ComposerSurface = memo(function ComposerSurface(
     (text: string) => void send(text),
     [send],
   );
+  const handleQueueIntent = useCallback(
+    async (intent: QueueIntent) => {
+      if (!protocol.resolveQueue) return;
+      if (intent.kind === "recall") {
+        exitConfirmation.disarm();
+        if (draft) {
+          setLocalToast({
+            text: "Clear the composer before recalling a queued message",
+            tone: "info",
+          });
+          return;
+        }
+      }
+      try {
+        const result = await protocol.resolveQueue(intent);
+        if (result.kind === "recalled") {
+          releaseEditingSuggestion();
+          setDraft(result.text);
+          composer.current?.setText(result.text);
+          composer.current?.focus();
+          setLocalToast({
+            text: "Recalled queued message; edit and resend",
+            tone: "info",
+          });
+        } else if (result.kind === "rejected") {
+          setLocalToast({ text: result.message, tone: "error" });
+        }
+      } catch (error) {
+        setLocalToast({
+          text: error instanceof Error ? error.message : String(error),
+          tone: "error",
+        });
+      }
+    },
+    [
+      draft,
+      exitConfirmation.disarm,
+      protocol,
+      releaseEditingSuggestion,
+      setLocalToast,
+    ],
+  );
 
   return (
     <>
@@ -321,7 +373,7 @@ export const ComposerSurface = memo(function ComposerSurface(
         <ComposerEditor
           ref={composer}
           placeholder={composerView.placeholder}
-          focused={!blockingInteraction && !choosingSuggestedInput && !picker}
+          focused={!blockingInteraction && !choosingSuggestedInput && !picker && !queueManager}
           busy={busy}
           theme={theme}
           onChange={handleComposerChange}
@@ -356,6 +408,15 @@ export const ComposerSurface = memo(function ComposerSurface(
           onSelectionChange={pickerController.updateSelectedIndex}
           onSelect={(value) => protocol.resolvePicker(picker.id, value)}
           onCancel={() => protocol.resolvePicker(picker.id, null)}
+        />
+      )}
+
+      {queueManager && queueView && !blockingInteraction && !picker && (
+        <QueuePane
+          queue={queueView}
+          anchorBottom={dockBottom}
+          theme={theme}
+          onIntent={handleQueueIntent}
         />
       )}
 

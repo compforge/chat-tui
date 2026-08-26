@@ -21,6 +21,12 @@ import { useTokenSelectionOnDoubleClick } from "../../src/index.ts";
 
 let mounted: { root: Root; setup: TestRendererSetup } | null = null;
 
+function rendererItems(setup: TestRendererSetup): Renderable[] {
+  return [...Renderable.renderablesByNumber.values()].filter(
+    (renderable) => renderable.ctx === setup.renderer,
+  );
+}
+
 afterEach(() => {
   mounted?.root.unmount();
   mounted?.setup.renderer.destroy();
@@ -87,7 +93,7 @@ describe("double-click selection", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     await setup.flush();
 
-    const visibleText = [...Renderable.renderablesByNumber.values()]
+    const visibleText = rendererItems(setup)
       .filter((renderable): renderable is Renderable & { plainText: string } => "plainText" in renderable)
       .map((renderable) => renderable.plainText);
     expect(visibleText).toContain("✨ ");
@@ -114,7 +120,7 @@ describe("double-click selection", () => {
     );
     await new Promise((resolve) => setTimeout(resolve, 0));
     await setup.flush();
-    const markdownBlocks = [...Renderable.renderablesByNumber.values()]
+    const markdownBlocks = rendererItems(setup)
       .filter((renderable): renderable is CodeRenderable => renderable instanceof CodeRenderable);
     await Promise.all(markdownBlocks.map((renderable) => renderable.highlightingDone));
     await setup.flush();
@@ -142,7 +148,7 @@ describe("double-click selection", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     await setup.flush();
 
-    const status = [...Renderable.renderablesByNumber.values()].find(
+    const status = rendererItems(setup).find(
       (renderable) => "plainText" in renderable && renderable.plainText === "Session: bs_01ABC-xyz",
     );
     expect(status).toBeDefined();
@@ -177,12 +183,12 @@ describe("double-click selection", () => {
     root.render(createElement(ChatShell, { protocol, commands: [] }));
     await new Promise((resolve) => setTimeout(resolve, 0));
     await setup.flush();
-    const markdownBlocks = [...Renderable.renderablesByNumber.values()]
+    const markdownBlocks = rendererItems(setup)
       .filter((renderable): renderable is CodeRenderable => renderable instanceof CodeRenderable);
     await Promise.all(markdownBlocks.map((renderable) => renderable.highlightingDone));
     await setup.flush();
 
-    const answer = [...Renderable.renderablesByNumber.values()].find(
+    const answer = rendererItems(setup).find(
       (renderable) =>
         "plainText" in renderable &&
         typeof renderable.plainText === "string" &&
@@ -215,10 +221,10 @@ describe("double-click selection", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     await setup.flush();
 
-    const footer = [...Renderable.renderablesByNumber.values()].find(
+    const footer = rendererItems(setup).find(
       (renderable) => "plainText" in renderable && renderable.plainText === "session: bs_01ABC-xyz  turns:2",
     );
-    const status = [...Renderable.renderablesByNumber.values()].find(
+    const status = rendererItems(setup).find(
       (renderable) => "plainText" in renderable && renderable.plainText === "claude turn queued",
     );
     expect(status).toBeDefined();
@@ -243,7 +249,7 @@ describe("double-click selection", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     await setup.flush();
 
-    const composer = [...Renderable.renderablesByNumber.values()].find(
+    const composer = rendererItems(setup).find(
       (renderable): renderable is TextareaRenderable => renderable instanceof TextareaRenderable,
     );
     expect(composer).toBeDefined();

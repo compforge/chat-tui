@@ -11,7 +11,9 @@ import {
   INPUT_LAYER_PRIORITY,
   InputProvider,
   useInputBindings,
+  useKeybindOverrides,
 } from "../../src/index.ts";
+import { layerBindings } from "../../src/input/keybinds.ts";
 
 let mounted: { root: Root; setup: TestRendererSetup } | null = null;
 
@@ -101,5 +103,63 @@ describe("layered keyboard routing", () => {
       (setup.renderer.currentFocusedRenderable as InputRenderable).value,
     ).toBe("a");
     expect(events).toEqual([]);
+  });
+});
+
+function OverridableInput(props: { events: string[] }): ReactNode {
+  const keybinds = useKeybindOverrides();
+  useInputBindings(() => ({
+    priority: INPUT_LAYER_PRIORITY.surface,
+    bindings: layerBindings(["turn.cancel"], keybinds).map((binding) => ({
+      ...binding,
+      cmd: () => props.events.push(binding.key),
+    })),
+  }), [keybinds]);
+  return <input focused />;
+}
+
+describe("keybind overrides", () => {
+  test("InputProvider keybinds rewire the routed key and can unbind", async () => {
+    const setup = await createTestRenderer({
+      width: 80,
+      height: 20,
+      screenMode: "main-screen",
+    });
+    const root = createRoot(setup.renderer);
+    mounted = { root, setup };
+    const events: string[] = [];
+    root.render(
+      createElement(
+        InputProvider,
+        { keybinds: { "turn.cancel": "ctrl+x" } },
+        createElement(OverridableInput, { events }),
+      ),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await setup.flush();
+
+    setup.mockInput.pressKey("x", { ctrl: true });
+    await setup.flush();
+    expect(events).toEqual(["ctrl+x"]);
+
+    // 默认 escape 已被覆盖，不再触发该行为
+    setup.mockInput.pressEscape();
+    await setup.flush();
+    expect(events).toEqual(["ctrl+x"]);
+
+    root.render(
+      createElement(
+        InputProvider,
+        { keybinds: { "turn.cancel": "ctrl+z" } },
+        createElement(OverridableInput, { events }),
+      ),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await setup.flush();
+
+    setup.mockInput.pressKey("x", { ctrl: true });
+    setup.mockInput.pressKey("z", { ctrl: true });
+    await setup.flush();
+    expect(events).toEqual(["ctrl+x", "ctrl+z"]);
   });
 });

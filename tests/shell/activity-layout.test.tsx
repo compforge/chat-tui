@@ -12,6 +12,12 @@ import {
 
 let mounted: { root: Root; setup: TestRendererSetup } | null = null;
 
+function rendererItems(setup: TestRendererSetup): Renderable[] {
+  return [...Renderable.renderablesByNumber.values()].filter(
+    (renderable) => renderable.ctx === setup.renderer,
+  );
+}
+
 afterEach(() => {
   mounted?.root.unmount();
   mounted?.setup.renderer.destroy();
@@ -50,10 +56,10 @@ describe("ChatShell activity layout", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     await setup.flush();
 
-    const transcript = [...Renderable.renderablesByNumber.values()].find(
+    const transcript = rendererItems(setup).find(
       (renderable) => "plainText" in renderable && renderable.plainText === "last transcript line",
     );
-    const status = [...Renderable.renderablesByNumber.values()].find(
+    const status = rendererItems(setup).find(
       (renderable) => "plainText" in renderable && renderable.plainText === "thinking…",
     );
     expect(transcript).toBeDefined();
@@ -85,10 +91,10 @@ describe("ChatShell activity layout", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     await setup.flush();
 
-    const statuses = [...Renderable.renderablesByNumber.values()].filter(
+    const statuses = rendererItems(setup).filter(
       (renderable) => "plainText" in renderable && renderable.plainText === "default · idle",
     );
-    const composer = [...Renderable.renderablesByNumber.values()].find(
+    const composer = rendererItems(setup).find(
       (renderable): renderable is TextareaRenderable => renderable instanceof TextareaRenderable,
     );
     expect(statuses).toHaveLength(1);
@@ -104,7 +110,8 @@ describe("ChatShell activity layout", () => {
     const protocol: ChatProtocol = {
       stateStore: createChatStore({
         timeline: { items: [] },
-        composer: { queued: [{ id: "queued-1", text: "follow up" }] },
+        composer: {},
+        queue: { items: [{ id: "queued-1", text: "follow up" }] },
         activity: { items: [{ id: "main", author: "codex", label: "thinking…" }] },
         footer: {},
         sidecar: undefined,
@@ -121,13 +128,13 @@ describe("ChatShell activity layout", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     await setup.flush();
 
-    const queue = [...Renderable.renderablesByNumber.values()].find(
+    const queue = rendererItems(setup).find(
       (renderable) => "plainText" in renderable && renderable.plainText === "• Queued follow-ups",
     );
-    const status = [...Renderable.renderablesByNumber.values()].find(
+    const status = rendererItems(setup).find(
       (renderable) => "plainText" in renderable && renderable.plainText === "thinking…",
     );
-    const composer = [...Renderable.renderablesByNumber.values()].find(
+    const composer = rendererItems(setup).find(
       (renderable): renderable is TextareaRenderable => renderable instanceof TextareaRenderable,
     );
     expect(queue).toBeDefined();

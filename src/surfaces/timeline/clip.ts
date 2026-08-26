@@ -69,6 +69,14 @@ export function hiddenHint(hiddenRows: number): string {
 }
 
 /**
+ * 按块展开后的收起提示行文案：点击该提示行收起这一个 block。
+ * 只在按块展开（点击 hiddenHint）时出现；全局展开（Ctrl+O）不出现——全局收起走 Ctrl+O。
+ */
+export function collapseHint(): string {
+  return "… expanded (click to collapse)";
+}
+
+/**
  * 核心入口：logical lines → 清洗 + wrap 成视觉行 → 按预算裁剪。
  * 超预算时预留 1 行给省略提示，所以 maxRows 是该段占用视觉行数的硬上限。
  */

@@ -3,6 +3,7 @@
 export * from "./state/chat.ts";
 export * from "./state/timeline.ts";
 export * from "./state/composer.ts";
+export * from "./state/queue.ts";
 export * from "./state/activity.ts";
 export * from "./state/parallel.ts";
 export * from "./state/footer.ts";
@@ -20,11 +21,23 @@ export {
   InputProvider,
   INPUT_LAYER_PRIORITY,
   useInputBindings,
+  useKeybindOverrides,
   type InputBindingLayer,
   type InputKeymap,
   type InputProviderProps,
   type InputTargetRef,
 } from "./input/keyboard.tsx";
+export {
+  defaultKeybinds,
+  editorKeyBindings,
+  keybindHint,
+  layerBindings,
+  resolveKeybinds,
+  type KeybindAction,
+  type KeybindDefinition,
+  type KeybindOverrides,
+  type ResolvedKeybind,
+} from "./input/keybinds.ts";
 
 export { ChatShell, type ChatShellProps } from "./shell/chat-shell.tsx";
 export {
@@ -68,10 +81,13 @@ export * from "./surfaces/composer/completion.ts";
 export * from "./surfaces/composer/keys.ts";
 export {
   QueueSurface,
+  QueuePane,
   QueuedList,
   InputArea,
+  queueActionAvailable,
   queuedPreview,
   type QueueSurfaceProps,
+  type QueuePaneProps,
   type QueuedListProps,
   type InputAreaProps,
 } from "./surfaces/composer/queued.tsx";
@@ -120,9 +136,12 @@ export {
 } from "./surfaces/parallel/parallel.tsx";
 export {
   RunStatus,
+  activityTipFor,
+  activityTipTail,
   runStatusParts,
   runStatusSpinner,
   runStatusTail,
+  TIP_ROTATE_MS,
   type RunStatusProps,
 } from "./surfaces/activity/run-status.tsx";
 

@@ -4,7 +4,9 @@ import { Fragment, type ReactNode } from "react";
 import {
   INPUT_LAYER_PRIORITY,
   useInputBindings,
+  useKeybindOverrides,
 } from "../../../input/keyboard.tsx";
+import { keybindHint, layerBindings } from "../../../input/keybinds.ts";
 import { defaultTheme, type Theme } from "../../../theme.ts";
 import { MarqueeText } from "../../../terminal/marquee.tsx";
 import type { Candidate } from "../completion.ts";
@@ -24,6 +26,7 @@ export interface SuggestionsProps {
 export function Suggestions(props: SuggestionsProps): ReactNode {
   const theme = props.theme ?? defaultTheme;
   const terminal = useTerminalDimensions();
+  const keybinds = useKeybindOverrides();
   useInputBindings(() => ({
     priority: INPUT_LAYER_PRIORITY.popup,
     commands: [
@@ -63,16 +66,32 @@ export function Suggestions(props: SuggestionsProps): ReactNode {
         },
       },
     ],
-    bindings: [
-      { key: "up", cmd: "suggestions.previous" },
-      { key: "down", cmd: "suggestions.next" },
-      { key: "tab", cmd: "suggestions.accept-tab" },
-      { key: "return", cmd: "suggestions.accept-enter" },
-      { key: "kpenter", cmd: "suggestions.accept-enter" },
-      { key: "escape", cmd: "suggestions.dismiss" },
-    ],
-  }));
+    bindings: layerBindings(
+      [
+        "suggestions.previous",
+        "suggestions.next",
+        "suggestions.accept-tab",
+        "suggestions.accept-enter",
+        "suggestions.dismiss",
+      ],
+      keybinds,
+    ),
+  }), [keybinds]);
   if (props.candidates.length === 0) return null;
+  const acceptHint = [
+    keybindHint("suggestions.accept-tab", keybinds),
+    keybindHint("suggestions.accept-enter", keybinds),
+  ].filter((hint): hint is string => Boolean(hint)).join("/");
+  const selectHint = [
+    keybindHint("suggestions.previous", keybinds),
+    keybindHint("suggestions.next", keybinds),
+  ].filter((hint): hint is string => Boolean(hint)).join("/");
+  const dismissHint = keybindHint("suggestions.dismiss", keybinds);
+  const help = [
+    acceptHint ? `${acceptHint} accept` : undefined,
+    selectHint ? `${selectHint} select` : undefined,
+    dismissHint ? `${dismissHint} close` : undefined,
+  ].filter((hint): hint is string => Boolean(hint)).join(" · ");
   const groupHeadings = props.candidates.reduce(
     (count, candidate, index) =>
       candidate.group &&
@@ -85,7 +104,7 @@ export function Suggestions(props: SuggestionsProps): ReactNode {
     <box
       border
       borderColor={theme.border}
-      title="Suggestions (Tab/Enter accept · ↑↓ select · Esc close)"
+      title={`Suggestions${help ? ` (${help})` : ""}`}
       style={{
         position: "absolute",
         left: 2,

@@ -8,7 +8,13 @@ import type { InteractionResponse } from "../../../protocol/interaction.ts";
 import {
   INPUT_LAYER_PRIORITY,
   useInputBindings,
+  useKeybindOverrides,
 } from "../../../input/keyboard.tsx";
+import {
+  keybindHint,
+  layerBindings,
+  type KeybindOverrides,
+} from "../../../input/keybinds.ts";
 import { defaultTheme, type Theme } from "../../../theme.ts";
 import { ApprovalCard } from "./approval-card.tsx";
 import { QuestionCard } from "./question-card.tsx";
@@ -34,6 +40,7 @@ function frameTitle(count: number): string {
  */
 export function InteractionDock(props: InteractionDockProps): ReactNode {
   const interaction = props.interactions[0];
+  const keybinds = useKeybindOverrides();
   useInputBindings(() => ({
     priority: INPUT_LAYER_PRIORITY.modal,
     commands: [
@@ -69,27 +76,11 @@ export function InteractionDock(props: InteractionDockProps): ReactNode {
         },
       },
     ],
-    bindings: [
-      {
-        key: "escape",
-        desc: "Cancel interaction",
-        group: "Interaction",
-        cmd: "interaction.cancel",
-      },
-      {
-        key: "ctrl+y",
-        desc: "Use suggested input",
-        group: "Interaction",
-        cmd: "suggested-input.use",
-      },
-      {
-        key: "ctrl+c",
-        desc: "Dismiss suggested input",
-        group: "Interaction",
-        cmd: "suggested-input.dismiss",
-      },
-    ],
-  }));
+    bindings: layerBindings(
+      ["interaction.cancel", "suggested-input.use", "suggested-input.dismiss"],
+      keybinds,
+    ),
+  }), [keybinds]);
   if (!interaction) return null;
 
   const title = frameTitle(props.interactions.length);
@@ -129,6 +120,7 @@ export function InteractionDock(props: InteractionDockProps): ReactNode {
       title={title}
       anchorBottom={props.anchorBottom}
       canUse={props.canUseSuggestedInput}
+      keybinds={keybinds}
       theme={props.theme}
       onUse={() => props.onUseSuggestedInput(interaction)}
       onDismiss={() =>
@@ -146,6 +138,7 @@ interface SuggestedInputCardProps {
   title: string;
   anchorBottom: number;
   canUse: boolean;
+  keybinds?: KeybindOverrides;
   theme?: Theme;
   onUse: () => void;
   onDismiss: () => void;
@@ -160,6 +153,9 @@ function SuggestedInputCard(props: SuggestedInputCardProps): ReactNode {
   const terminal = useTerminalDimensions();
   const width = Math.max(28, Math.min(112, terminal.width - 4));
   const height = Math.max(8, Math.min(18, terminal.height - props.anchorBottom - 1));
+  const useHint = keybindHint("suggested-input.use", props.keybinds);
+  const dismissHint = keybindHint("suggested-input.dismiss", props.keybinds);
+  const clearHint = keybindHint("composer.clear-or-exit", props.keybinds);
 
   return (
     <box
@@ -191,11 +187,15 @@ function SuggestedInputCard(props: SuggestedInputCardProps): ReactNode {
           style={{ height: 2, flexShrink: 0 }}
           options={[
             {
-              name: "Use in composer  (Ctrl+Y)",
+              name: `Use in composer${useHint ? `  (${useHint})` : ""}`,
               description: "",
               value: "use",
             },
-            { name: "Dismiss  (Ctrl+C)", description: "", value: "dismiss" },
+            {
+              name: `Dismiss${dismissHint ? `  (${dismissHint})` : ""}`,
+              description: "",
+              value: "dismiss",
+            },
           ]}
           onSelect={(_index: number, option: SuggestedInputOption | null) => {
             if (option?.value === "use") props.onUse();
@@ -204,7 +204,7 @@ function SuggestedInputCard(props: SuggestedInputCardProps): ReactNode {
         />
       ) : (
         <text fg={theme.dim}>
-          Clear the composer to choose an action · Ctrl+C clears draft
+          {`Clear the composer to choose an action${clearHint ? ` · ${clearHint} clears draft` : ""}`}
         </text>
       )}
     </box>

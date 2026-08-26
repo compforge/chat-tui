@@ -21,12 +21,13 @@ function initialState(): ChatState {
 describe("chat state store", () => {
   test("notifies only the channels changed by a commit", () => {
     const runtime = createChatStore(initialState());
-    const calls = { timeline: 0, composer: 0, activity: 0, parallel: 0, footer: 0, sidecar: 0 };
+    const calls = { timeline: 0, composer: 0, queue: 0, activity: 0, parallel: 0, footer: 0, sidecar: 0 };
     const composerBefore = runtime.getState("composer");
     const timelineBefore = runtime.getState("timeline");
 
     runtime.subscribe("timeline", () => calls.timeline++);
     runtime.subscribe("composer", () => calls.composer++);
+    runtime.subscribe("queue", () => calls.queue++);
     runtime.subscribe("activity", () => calls.activity++);
     runtime.subscribe("parallel", () => calls.parallel++);
     runtime.subscribe("footer", () => calls.footer++);
@@ -41,6 +42,7 @@ describe("chat state store", () => {
     expect(calls).toEqual({
       timeline: 0,
       composer: 0,
+      queue: 0,
       activity: 0,
       parallel: 0,
       footer: 0,
