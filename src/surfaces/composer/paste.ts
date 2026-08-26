@@ -16,12 +16,15 @@ export interface PasteChunk {
  * 互不重复（等长内容也不撞车）。清空/提交后由持有方重建。
  */
 export interface PasteBoard {
+  /** 每个 composer 实例独有；编码进不可见 token identity，避免同形可见文本被误展开。 */
+  id: string;
   nextId: number;
   chunks: PasteChunk[];
 }
 
 export function createPasteBoard(): PasteBoard {
-  return { nextId: 1, chunks: [] };
+  const id = globalThis.crypto.randomUUID().replaceAll("-", "").slice(0, 12);
+  return { id, nextId: 1, chunks: [] };
 }
 
 export function pasteLineCount(text: string): number {
@@ -43,9 +46,30 @@ export function pasteTokenLabel(id: number, content: string): string {
     : `[Pasted #${id} ${content.length} chars]`;
 }
 
+const UNICODE_TAG_OFFSET = 0xe0000;
+const UNICODE_CANCEL_TAG = 0xe007f;
+const UNICODE_TAGS = /[\u{e0000}-\u{e007f}]/gu;
+
+/**
+ * Unicode tag characters are not rendered by OpenTUI, but remain part of the editable buffer.
+ * Encoding the board identity behind the visible label makes the replacement key opaque without
+ * changing the chip text the user sees.
+ */
+function pasteTokenIdentity(value: string): string {
+  return Array.from(value, (character) =>
+    String.fromCodePoint(UNICODE_TAG_OFFSET + (character.codePointAt(0) ?? 0))
+  ).join("") + String.fromCodePoint(UNICODE_CANCEL_TAG);
+}
+
+/** Buffer/text assertions that need the user-visible token text can strip its opaque identity. */
+export function visiblePasteTokenText(text: string): string {
+  return text.replaceAll(UNICODE_TAGS, "");
+}
+
 /** 折叠一段粘贴内容：登记旁表并返回应插入 buffer 的 token。 */
 export function foldPaste(board: PasteBoard, content: string): string {
-  const token = pasteTokenLabel(board.nextId, content);
+  const id = board.nextId;
+  const token = pasteTokenLabel(id, content) + pasteTokenIdentity(board.id);
   board.nextId += 1;
   board.chunks.push({ token, content });
   return token;
@@ -76,6 +100,12 @@ export interface PasteTokenRange {
   token: string;
 }
 
+export interface PasteTokenSelection {
+  start: number;
+  end: number;
+  tokens: string[];
+}
+
 /** buffer 中所有已登记 token 的位置（按出现顺序）。 */
 export function pasteTokenRanges(
   text: string,
@@ -93,6 +123,27 @@ export function pasteTokenRanges(
     }
   }
   return ranges.sort((a, b) => a.start - b.start);
+}
+
+/** 将一段 selection 扩到其接触到的完整 token 边界；未接触 token 时返回 null。 */
+export function pasteTokenSelection(
+  text: string,
+  board: PasteBoard,
+  selectionStart: number,
+  selectionEnd: number,
+): PasteTokenSelection | null {
+  const start = Math.min(selectionStart, selectionEnd);
+  const end = Math.max(selectionStart, selectionEnd);
+  if (start === end) return null;
+  const touched = pasteTokenRanges(text, board).filter(
+    (range) => start < range.end && range.start < end,
+  );
+  if (touched.length === 0) return null;
+  return {
+    start: Math.min(start, ...touched.map((range) => range.start)),
+    end: Math.max(end, ...touched.map((range) => range.end)),
+    tokens: [...new Set(touched.map((range) => range.token))],
+  };
 }
 
 /**

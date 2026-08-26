@@ -17,6 +17,7 @@ import {
   expandPasteTokens,
   foldPaste,
   pasteTokenAt,
+  pasteTokenSelection,
   removePasteChunk,
   shouldFoldPaste,
   type PasteBoard,
@@ -73,6 +74,30 @@ function deleteTokenRange(
   textarea.cursorOffset = range.start;
 }
 
+function protectSelectedPasteTokens(
+  textarea: TextareaRenderable,
+  board: PasteBoard,
+): void {
+  const selection = textarea.getSelection();
+  if (!selection) return;
+  const protectedSelection = pasteTokenSelection(
+    textarea.plainText,
+    board,
+    selection.start,
+    selection.end,
+  );
+  if (!protectedSelection) return;
+  textarea.setSelection(protectedSelection.start, protectedSelection.end);
+  for (const token of protectedSelection.tokens) removePasteChunk(board, token);
+}
+
+/** 普通字符会替换 selection；导航、提交和带控制修饰符的命令不会。 */
+function replacesSelection(event: KeyEvent): boolean {
+  if (event.name === "backspace" || event.name === "delete") return true;
+  if (event.ctrl || event.meta || event.option || event.super || event.hyper) return false;
+  return event.name.length === 1 || event.name === "space";
+}
+
 /**
  * 多行输入框。textarea 自持内部 buffer，消费方的 draft state 只是镜像
  * （供候选推导/按键分层用）——清空/覆写必须走 ComposerHandle，两边才能一致。
@@ -123,15 +148,21 @@ export const ComposerEditor = memo(function ComposerEditor(
     const mime = event.metadata?.mimeType;
     if (mime !== undefined && !mime.startsWith("text/")) return;
     const content = new TextDecoder().decode(event.bytes);
+    const ta = textarea.current;
+    if (ta?.hasSelection()) protectSelectedPasteTokens(ta, pasteBoard.current);
     if (!shouldFoldPaste(content)) return;
     event.preventDefault();
     const token = foldPaste(pasteBoard.current, content);
-    textarea.current?.insertText(token);
+    ta?.insertText(token);
   };
 
   const handleKeyDown = (event: KeyEvent): void => {
     const ta = textarea.current;
-    if (!ta || ta.hasSelection()) return;
+    if (!ta) return;
+    if (ta.hasSelection()) {
+      if (replacesSelection(event)) protectSelectedPasteTokens(ta, pasteBoard.current);
+      return;
+    }
     const text = ta.plainText;
     const offset = ta.cursorOffset;
     const board = pasteBoard.current;

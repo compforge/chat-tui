@@ -7,8 +7,10 @@ import {
   pasteLineCount,
   pasteTokenAt,
   pasteTokenRanges,
+  pasteTokenSelection,
   removePasteChunk,
   shouldFoldPaste,
+  visiblePasteTokenText,
 } from "../../../src/surfaces/composer/paste.ts";
 
 const multiline = Array.from({ length: 12 }, (_, i) => `line ${i + 1}`).join("\n");
@@ -39,21 +41,21 @@ describe("foldPaste / expandPasteTokens", () => {
   test("multi-line paste folds into a numbered line-count token", () => {
     const board = createPasteBoard();
     const token = foldPaste(board, multiline);
-    expect(token).toBe("[Pasted #1 ~12 lines]");
+    expect(visiblePasteTokenText(token)).toBe("[Pasted #1 ~12 lines]");
   });
 
   test("single-line long paste folds into a char-count token", () => {
     const board = createPasteBoard();
     const token = foldPaste(board, "x".repeat(300));
-    expect(token).toBe("[Pasted #1 300 chars]");
+    expect(visiblePasteTokenText(token)).toBe("[Pasted #1 300 chars]");
   });
 
   test("repeated pastes increment the token id", () => {
     const board = createPasteBoard();
     const first = foldPaste(board, multiline);
     const second = foldPaste(board, multiline);
-    expect(first).toBe("[Pasted #1 ~12 lines]");
-    expect(second).toBe("[Pasted #2 ~12 lines]");
+    expect(visiblePasteTokenText(first)).toBe("[Pasted #1 ~12 lines]");
+    expect(visiblePasteTokenText(second)).toBe("[Pasted #2 ~12 lines]");
   });
 
   test("submit text expands tokens back to the full original", () => {
@@ -79,10 +81,31 @@ describe("foldPaste / expandPasteTokens", () => {
 
   test("look-alike text typed by hand is left untouched", () => {
     const board = createPasteBoard();
-    expandPasteTokens("[Pasted #9 ~3 lines]", board);
-    expect(expandPasteTokens("[Pasted #9 ~3 lines]", board)).toBe(
-      "[Pasted #9 ~3 lines]",
+    const visible = "[Pasted #1 ~12 lines]";
+    const token = foldPaste(board, multiline);
+    expect(expandPasteTokens(`${visible} ${token}`, board)).toBe(
+      `${visible} ${multiline}`,
     );
+  });
+});
+
+describe("pasteTokenSelection", () => {
+  test("expands a partial selection to the whole token", () => {
+    const board = createPasteBoard();
+    const token = foldPaste(board, multiline);
+    const text = `before ${token} after`;
+    const start = "before ".length;
+    expect(pasteTokenSelection(text, board, start + 2, start + 5)).toEqual({
+      start,
+      end: start + token.length,
+      tokens: [token],
+    });
+  });
+
+  test("leaves selections outside tokens alone", () => {
+    const board = createPasteBoard();
+    const token = foldPaste(board, multiline);
+    expect(pasteTokenSelection(`before ${token}`, board, 0, 3)).toBeNull();
   });
 });
 

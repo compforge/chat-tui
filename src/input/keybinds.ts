@@ -353,6 +353,7 @@ export interface KeybindEditorBinding {
   ctrl?: boolean;
   shift?: boolean;
   meta?: boolean;
+  super?: boolean;
   action: "submit" | "newline";
 }
 
@@ -368,20 +369,25 @@ export function editorKeyBindings(
     }));
 }
 
-/** "ctrl+shift+y" → { name: "y", ctrl: true, shift: true }；仅解析 textarea 支持的修饰键。 */
+/** "ctrl+shift+y" → { name: "y", ctrl: true, shift: true }；未知 modifier 直接拒绝。 */
 export function parseKeybindKey(key: string): {
   name: string;
   ctrl?: boolean;
   shift?: boolean;
   meta?: boolean;
+  super?: boolean;
 } {
   const parts = key.split("+");
   const name = parts[parts.length - 1] ?? key;
   const modifiers = new Set(parts.slice(0, -1));
+  const supported = new Set(["ctrl", "shift", "meta", "super"]);
+  const unsupported = [...modifiers].find((modifier) => !supported.has(modifier));
+  if (!name || unsupported) throw new Error(`Unsupported editor key binding: ${key}`);
   return {
     name,
     ...(modifiers.has("ctrl") ? { ctrl: true } : {}),
     ...(modifiers.has("shift") ? { shift: true } : {}),
     ...(modifiers.has("meta") ? { meta: true } : {}),
+    ...(modifiers.has("super") ? { super: true } : {}),
   };
 }

@@ -12,6 +12,7 @@ import {
   InputProvider,
   type ComposerHandle,
 } from "../../../src/index.ts";
+import { visiblePasteTokenText } from "../../../src/surfaces/composer/paste.ts";
 
 let mounted: { root: Root; setup: TestRendererSetup } | null = null;
 
@@ -58,6 +59,12 @@ function bufferText(setup: TestRendererSetup): string {
   return textarea.plainText;
 }
 
+function focusedTextarea(setup: TestRendererSetup): TextareaRenderable {
+  const textarea = setup.renderer.currentFocusedRenderable;
+  if (!(textarea instanceof TextareaRenderable)) throw new Error("no textarea");
+  return textarea;
+}
+
 describe("ComposerEditor paste folding", () => {
   test("a large bracketed paste becomes an atomic token and submits the original", async () => {
     const submitted: string[] = [];
@@ -69,7 +76,7 @@ describe("ComposerEditor paste folding", () => {
 
     await setup.mockInput.pasteBracketedText(multiline);
     await setup.flush();
-    expect(bufferText(setup)).toBe("[Pasted #1 ~12 lines]");
+    expect(visiblePasteTokenText(bufferText(setup))).toBe("[Pasted #1 ~12 lines]");
 
     editorRef.current?.editText(`review ${bufferText(setup)}`);
     setup.mockInput.pressEnter();
@@ -114,9 +121,30 @@ describe("ComposerEditor paste folding", () => {
     await setup.mockInput.pasteBracketedText(multiline);
     await setup.mockInput.pasteBracketedText("x".repeat(300));
     await setup.flush();
-    expect(bufferText(setup)).toBe(
+    expect(visiblePasteTokenText(bufferText(setup))).toBe(
       "[Pasted #1 ~12 lines][Pasted #2 300 chars]",
     );
+  });
+
+  test("a literal look-alike remains literal when the matching chip exists", async () => {
+    const submitted: string[] = [];
+    const setup = await mount({ onSubmit: (text) => submitted.push(text) });
+    setup.mockInput.typeText("[Pasted #1 ~12 lines] ");
+    await setup.mockInput.pasteBracketedText(multiline);
+    setup.mockInput.pressEnter();
+    await setup.flush();
+    expect(submitted).toEqual([`[Pasted #1 ~12 lines] ${multiline}`]);
+  });
+
+  test("editing a partial token selection replaces the whole chip", async () => {
+    const submitted: string[] = [];
+    const setup = await mount({ onSubmit: (text) => submitted.push(text) });
+    await setup.mockInput.pasteBracketedText(multiline);
+    focusedTextarea(setup).setSelection(2, 6);
+    setup.mockInput.typeText("x");
+    setup.mockInput.pressEnter();
+    await setup.flush();
+    expect(submitted).toEqual(["x"]);
   });
 
 });
