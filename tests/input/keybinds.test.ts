@@ -149,4 +149,10 @@ describe("parseKeybindKey", () => {
     });
     expect(parseKeybindKey("return")).toEqual({ name: "return" });
   });
+
+  test("rejects modifiers unsupported by editor bindings", () => {
+    expect(() => parseKeybindKey("alt+return")).toThrow(
+      "Unsupported editor key binding: alt+return",
+    );
+  });
 });
