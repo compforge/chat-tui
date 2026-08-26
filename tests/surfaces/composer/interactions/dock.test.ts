@@ -18,6 +18,7 @@ import {
   type ChatStore,
 } from "../../../../src/index.ts";
 import type { InteractionResponse } from "../../../../src/index.ts";
+import type { QueueIntent } from "../../../../src/index.ts";
 
 let mounted: { root: Root; setup: TestRendererSetup } | null = null;
 
@@ -400,6 +401,48 @@ describe("InteractionDock", () => {
     await setup.waitFor(() => harness.pickerResults.length === 1);
     expect(harness.pickerResults).toEqual([{ id: "picker_1", value: null }]);
     expect(harness.turnCancels).toEqual([]);
+  });
+
+  test("recalls the selected queue item directly into the composer", async () => {
+    const harness = testProtocol({
+      queue: {
+        manager: { title: "Queued follow-ups" },
+        items: [
+          {
+            id: "m_first",
+            text: "first",
+            actions: ["recall"],
+          },
+          {
+            id: "m_second",
+            text: "second\nline two\nline three\nline four",
+            actions: ["recall", "discard", "dispatch-now"],
+          },
+        ],
+      },
+    });
+    const intents: QueueIntent[] = [];
+    harness.protocol.resolveQueue = async (intent) => {
+      intents.push(intent);
+      return intent.kind === "recall"
+        ? { kind: "recalled", text: "second\nline two\nline three\nline four" }
+        : { kind: "accepted" };
+    };
+    const { setup, composer } = await mount(harness.protocol, {
+      width: 100,
+      height: 30,
+    });
+
+    expect(setup.captureCharFrame()).toContain("Queued follow-ups");
+    expect(setup.captureCharFrame()).toContain("line three…");
+    setup.mockInput.pressArrow("down");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await setup.flush();
+    setup.mockInput.pressEnter();
+    await setup.waitFor(() => composer.plainText.startsWith("second"));
+
+    expect(intents).toEqual([{ kind: "recall", itemId: "m_second" }]);
+    expect(composer.plainText).toBe("second\nline two\nline three\nline four");
   });
 
   test("the topmost sidecar overlay handles Esc before an interaction", async () => {

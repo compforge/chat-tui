@@ -24,6 +24,7 @@ export function createChatStore(
   const cells: { [Key in keyof ChatState]-?: StateCell<ChatState[Key]> } = {
     timeline: createStateCell(initial.timeline),
     composer: createStateCell(initial.composer),
+    queue: createStateCell(initial.queue),
     activity: createStateCell(initial.activity),
     parallel: createStateCell(initial.parallel),
     footer: createStateCell(initial.footer),
@@ -45,6 +46,7 @@ export function createChatStore(
 
     replace("timeline", patch.timeline);
     replace("composer", patch.composer);
+    replace("queue", patch.queue);
     replace("activity", patch.activity);
     replace("parallel", patch.parallel);
     replace("footer", patch.footer);

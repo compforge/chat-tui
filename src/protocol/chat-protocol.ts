@@ -1,14 +1,26 @@
 // chat-tui 的接入协议：接入方实现 ChatProtocol，ChatShell 负责渲染与交互。
 //
-//   输出（接入方 → TUI）：stateStore 提供五个可独立订阅的稳定 State。
+//   输出（接入方 → TUI）：stateStore 提供七个可独立订阅的稳定 State。
 //     Surface 通过 Store 直接订阅所需 State，避免无关区域互相触发重渲染。
 //   输入（TUI → 接入方）：submit / command / cancel / exit / searchPicker / resolvePicker /
-//     resolveInteraction / recallQueued。这些是用户意图（intent，MVI 语义）：TUI 已把
+//     resolveInteraction / recallQueued / resolveQueue。这些是用户意图（intent，MVI 语义）：TUI 已把
 //     原始按键翻译成语义级请求，只表达"用户想干什么"；如何执行（发本地进程还是
 //     远端、cancel 映射到哪家 provider 的 interrupt）由接入方决定。
 
 import type { ChatStore } from "../store/chat-store.ts";
 import type { InteractionResponse } from "./interaction.ts";
+
+export type QueueIntent =
+  | { kind: "close" }
+  | { kind: "recall"; itemId: string }
+  | { kind: "discard"; itemId: string }
+  | { kind: "move"; itemId: string; direction: "up" | "down" }
+  | { kind: "dispatch-now"; itemId: string };
+
+export type QueueIntentResult =
+  | { kind: "accepted" }
+  | { kind: "recalled"; text: string }
+  | { kind: "rejected"; message: string };
 
 export interface ChatProtocol {
   // ===== 输出：接入方 → TUI =====
@@ -36,6 +48,8 @@ export interface ChatProtocol {
   dismissSidecar?(): void;
   /** ↑ 召回最近一条排队输入（同时应将其从队列移除）；无可召回返回 null */
   recallQueued?(): { text: string } | null;
+  /** Interactive queue-pane intent; the harness owns validation and lifecycle changes. */
+  resolveQueue?(intent: QueueIntent): QueueIntentResult | Promise<QueueIntentResult>;
   /**
    * ↑ 历史回溯（shell 式）：把输入框内容替换成更早一条用户输入。TUI 仅在光标位于
    * 输入边界时调用（避免劫持多行光标移动），并传入当前输入；接入方据此判断是否处于

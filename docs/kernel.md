@@ -35,7 +35,7 @@ harness 先把自身事件整理成当前应展示的 State，再通过 Store �
 
 ### State 与 Store
 
-- `stateStore` 发布 `timeline`、`composer`、`activity`、`footer`、`parallel`、`sidecar` 六个稳定
+- `stateStore` 发布 `timeline`、`composer`、`queue`、`activity`、`footer`、`parallel`、`sidecar` 七个稳定
   State。未变化的 State 保持引用不变，也不通知订阅者。
 - `commit(patch)` 是原子提交：多路新快照先全部可见，再通知发生变化的 State。
 - State 是展示数据，不是上游事件。接入方保有业务真相源和 durable lifecycle，chat-tui
@@ -48,9 +48,9 @@ harness 先把自身事件整理成当前应展示的 State，再通过 Store �
 | Surface | 消费的 State | 职责 |
 |---|---|---|
 | `TimelineSurface` | `timeline` | 历史消息、活动块与当前计划 |
-| `QueueSurface` | `composer` | Activity 上方可选的待执行输入区 |
+| `QueueSurface` | `queue` | Activity 上方可选的待执行输入区 |
 | `ActivitySurface` | `activity` | Composer 上方唯一的主执行线当前状态区 |
-| `ComposerSurface` | `composer`、`sidecar` 的布局 selector | 输入、补全与待处理交互，不重复承载运行状态 |
+| `ComposerSurface` | `composer`、`queue` | 输入、补全、QueuePane 与待处理交互，不重复承载运行状态 |
 | `FooterSurface` | `footer` | 短寿命回执与常驻状态 |
 | `ParallelSurface` | `parallel` | Footer 下方可选的当前并行工作区 |
 | `SidecarSurface` | `sidecar` | 与主时间线并列的辅助信息 |
@@ -61,7 +61,7 @@ harness 先把自身事件整理成当前应展示的 State，再通过 Store �
 ### Intent 与注入点
 
 - `submit`、`command`、`cancel` 与 `exit` 表达基础输入意图。
-- Picker 与 Interaction 通过稳定 ID 返回结果；Sidecar 关闭和历史导航使用独立 intent。
+- Picker、QueuePane 与 Interaction 通过稳定 ID 返回结果；Sidecar 关闭和历史导航使用独立 intent。
   请求执行、排队、取消和过期结果处理归 harness。
 - slash 命令表、`@` 引用源、theme 与裁剪策略由接入方注入，chat-tui 不内置具体产品或
   provider 语义。

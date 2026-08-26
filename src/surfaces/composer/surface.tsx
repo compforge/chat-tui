@@ -26,6 +26,7 @@ import {
 import { InteractionDock } from "./interactions/dock.tsx";
 import { Picker } from "./interactions/picker.tsx";
 import { Suggestions } from "./interactions/suggestions.tsx";
+import { QueuePane } from "./queued.tsx";
 import { useExitConfirmation } from "./exit-confirmation.ts";
 import { usePickerController } from "./picker-controller.ts";
 import {
@@ -34,7 +35,7 @@ import {
   useKeybindOverrides,
 } from "../../input/keyboard.tsx";
 import { layerBindings } from "../../input/keybinds.ts";
-import type { ChatProtocol } from "../../protocol/chat-protocol.ts";
+import type { ChatProtocol, QueueIntent } from "../../protocol/chat-protocol.ts";
 import type { CommandSpec } from "../../protocol/command.ts";
 import type { InteractionView } from "../../state/composer.ts";
 import type { ToastMessage } from "../../state/footer.ts";
@@ -60,6 +61,7 @@ export const ComposerSurface = memo(function ComposerSurface(
   const { protocol } = props;
   const theme = props.theme;
   const composerView = useStoreState(props.store, "composer");
+  const queueView = useStoreState(props.store, "queue");
   const setLocalToast = props.setLocalToast;
 
   const [draft, setDraft] = useState("");
@@ -95,13 +97,14 @@ export const ComposerSurface = memo(function ComposerSurface(
   const choosingSuggestedInput =
     activeInteraction?.kind === "suggested_input" && !draft;
   const picker = composerView.picker ?? null;
+  const queueManager = queueView?.manager ?? null;
   const searchPicker = useCallback(
     (id: string, query: string) => protocol.searchPicker(id, query),
     [protocol],
   );
   const pickerController = usePickerController(picker, searchPicker);
   const candidates =
-    trigger && !suggDismissed && !blockingInteraction && !picker
+    trigger && !suggDismissed && !blockingInteraction && !picker && !queueManager
       ? buildCandidates(trigger, { commands: props.commands, mentions: props.mentions })
       : [];
   const sel = candidates.length ? Math.min(suggIdx, candidates.length - 1) : 0;
@@ -109,7 +112,7 @@ export const ComposerSurface = memo(function ComposerSurface(
   // 焦点安全网：浮层都关闭时确保焦点回到输入框。focused prop 只在值变化时生效，
   // 覆盖不到"焦点被别处拿走但 prop 没变"的场景；focus() 对已聚焦者是 no-op，代价可忽略。
   useEffect(() => {
-    if (!blockingInteraction && !choosingSuggestedInput && !picker) {
+    if (!blockingInteraction && !choosingSuggestedInput && !picker && !queueManager) {
       composer.current?.focus();
     }
   });
@@ -314,6 +317,39 @@ export const ComposerSurface = memo(function ComposerSurface(
     (text: string) => void send(text),
     [send],
   );
+  const handleQueueIntent = useCallback(
+    async (intent: QueueIntent) => {
+      if (!protocol.resolveQueue) return;
+      if (intent.kind === "recall" && draft) {
+        setLocalToast({
+          text: "Clear the composer before recalling a queued message",
+          tone: "info",
+        });
+        return;
+      }
+      try {
+        const result = await protocol.resolveQueue(intent);
+        if (result.kind === "recalled") {
+          releaseEditingSuggestion();
+          setDraft(result.text);
+          composer.current?.setText(result.text);
+          composer.current?.focus();
+          setLocalToast({
+            text: "Recalled queued message; edit and resend",
+            tone: "info",
+          });
+        } else if (result.kind === "rejected") {
+          setLocalToast({ text: result.message, tone: "error" });
+        }
+      } catch (error) {
+        setLocalToast({
+          text: error instanceof Error ? error.message : String(error),
+          tone: "error",
+        });
+      }
+    },
+    [draft, protocol, releaseEditingSuggestion, setLocalToast],
+  );
 
   return (
     <>
@@ -327,7 +363,7 @@ export const ComposerSurface = memo(function ComposerSurface(
         <ComposerEditor
           ref={composer}
           placeholder={composerView.placeholder}
-          focused={!blockingInteraction && !choosingSuggestedInput && !picker}
+          focused={!blockingInteraction && !choosingSuggestedInput && !picker && !queueManager}
           busy={busy}
           theme={theme}
           onChange={handleComposerChange}
@@ -362,6 +398,15 @@ export const ComposerSurface = memo(function ComposerSurface(
           onSelectionChange={pickerController.updateSelectedIndex}
           onSelect={(value) => protocol.resolvePicker(picker.id, value)}
           onCancel={() => protocol.resolvePicker(picker.id, null)}
+        />
+      )}
+
+      {queueManager && queueView && !blockingInteraction && !picker && (
+        <QueuePane
+          queue={queueView}
+          anchorBottom={dockBottom}
+          theme={theme}
+          onIntent={handleQueueIntent}
         />
       )}
 

@@ -3,6 +3,7 @@
 export * from "./state/chat.ts";
 export * from "./state/timeline.ts";
 export * from "./state/composer.ts";
+export * from "./state/queue.ts";
 export * from "./state/activity.ts";
 export * from "./state/parallel.ts";
 export * from "./state/footer.ts";
@@ -79,10 +80,13 @@ export * from "./surfaces/composer/completion.ts";
 export * from "./surfaces/composer/keys.ts";
 export {
   QueueSurface,
+  QueuePane,
   QueuedList,
   InputArea,
+  queueActionAvailable,
   queuedPreview,
   type QueueSurfaceProps,
+  type QueuePaneProps,
   type QueuedListProps,
   type InputAreaProps,
 } from "./surfaces/composer/queued.tsx";

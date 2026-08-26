@@ -74,15 +74,8 @@ export interface PickerView {
   search?: PickerSearchView;
 }
 
-export interface QueuedItem {
-  id: string;
-  text: string;
-  tag?: string;
-}
-
 export interface ComposerState {
   busy?: boolean;
-  queued?: QueuedItem[];
   picker?: (PickerView & { id: string }) | null;
   interactions?: InteractionView[];
   placeholder?: string;

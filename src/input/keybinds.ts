@@ -25,6 +25,14 @@ export type KeybindAction =
   | "picker.previous"
   | "picker.next"
   | "picker.confirm"
+  | "queue.cancel"
+  | "queue.previous"
+  | "queue.next"
+  | "queue.recall"
+  | "queue.discard"
+  | "queue.move-up"
+  | "queue.move-down"
+  | "queue.dispatch-now"
   | "suggestions.previous"
   | "suggestions.next"
   | "suggestions.accept-tab"
@@ -133,6 +141,54 @@ export const defaultKeybinds: readonly KeybindDefinition[] = [
     keys: ["return", "kpenter"],
     desc: "Choose picker option",
     group: "Picker",
+  },
+  {
+    action: "queue.cancel",
+    keys: ["escape"],
+    desc: "Close queue manager",
+    group: "Queue",
+  },
+  {
+    action: "queue.previous",
+    keys: ["up"],
+    desc: "Select previous queued input",
+    group: "Queue",
+  },
+  {
+    action: "queue.next",
+    keys: ["down"],
+    desc: "Select next queued input",
+    group: "Queue",
+  },
+  {
+    action: "queue.recall",
+    keys: ["return", "kpenter"],
+    desc: "Recall selected input to composer",
+    group: "Queue",
+  },
+  {
+    action: "queue.discard",
+    keys: ["d"],
+    desc: "Discard selected queued input",
+    group: "Queue",
+  },
+  {
+    action: "queue.move-up",
+    keys: ["alt+up"],
+    desc: "Move selected input earlier",
+    group: "Queue",
+  },
+  {
+    action: "queue.move-down",
+    keys: ["alt+down"],
+    desc: "Move selected input later",
+    group: "Queue",
+  },
+  {
+    action: "queue.dispatch-now",
+    keys: ["ctrl+s"],
+    desc: "Dispatch selected input now",
+    group: "Queue",
   },
   {
     action: "suggestions.previous",

@@ -83,7 +83,7 @@ provider supports and how each operation maps to it.
 | Text and commands | `submit()` handles text; registered slash commands use `command()`. Attachments and arbitrary structured input are not modeled |
 | Interrupt and exit | `cancel()` and `exit()` express intent; the harness owns provider interruption and process shutdown |
 | Mode cycling | Optional `cycleMode()` maps `Shift+Tab` to the harness-defined next mode |
-| Queue and history | Display, recall, and navigation are supported; queue ownership and same-turn steering remain in the harness |
+| Queue and history | Compact preview plus an optional item manager emit recall, discard, reorder, and dispatch-now intents; queue ownership and same-turn steering remain in the harness |
 | Generic choice | Picker supports static options, local filtering, and harness-owned remote search |
 | Human interaction | Permission, structured question, and suggested-input variants share `resolveInteraction()`; each active item declares its exact `cancelResponse`, while chat-tui maps Esc to that semantic cancel intent |
 

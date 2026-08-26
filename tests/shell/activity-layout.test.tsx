@@ -104,7 +104,8 @@ describe("ChatShell activity layout", () => {
     const protocol: ChatProtocol = {
       stateStore: createChatStore({
         timeline: { items: [] },
-        composer: { queued: [{ id: "queued-1", text: "follow up" }] },
+        composer: {},
+        queue: { items: [{ id: "queued-1", text: "follow up" }] },
         activity: { items: [{ id: "main", author: "codex", label: "thinking…" }] },
         footer: {},
         sidecar: undefined,

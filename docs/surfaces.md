@@ -88,8 +88,9 @@ Composer 位于历史区下方，是供用户持续组织和修改输入的创�
 ## QueueSurface
 
 Queue 展示等待执行的输入，是 Activity 之前的可选将来时区域；队列本体、顺序和召回语义归
-harness。Queue 仍消费 Composer State 中的 queued items，但拥有独立渲染边界；召回后的内容回到
-Composer 继续编辑，空队列不占空间。
+harness。Queue 使用独立 State 和渲染边界；紧凑 QueueSurface 负责预览，QueuePane 负责按条选择并
+根据接入方声明的 capability 产出召回、删除、重排或立即派发 intent。召回结果由 ComposerSurface
+直接写入自身 draft，空队列不占空间，也不通过全局焦点或编辑器查找桥注入内容。
 
 ### Interaction Dock
 

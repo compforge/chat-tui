@@ -48,7 +48,7 @@ InteractionDock、Picker、Suggestions、Question editor 等组件声明自己�
 1. `application`：应用兜底行为；
 2. `surface`：Composer、Transcript 等常驻区域；
 3. `popup`：补全和 Picker；
-4. `modal`：阻塞 Interaction；
+4. `modal`：阻塞 Interaction 与 QueuePane；
 5. `editing`：Modal 内部的临时编辑模式；
 6. `overlay`：视觉上覆盖整页的 Sidecar 等应用浮层。
 
@@ -78,6 +78,7 @@ Interaction view 通过 `cancelResponse` 声明取消应映射到某个 reject o
 Question Other 编辑 ─cancel→ 返回选项
 Picker 查询         ─cancel→ 清空查询
 Picker              ─cancel→ resolvePicker(id, null)
+QueuePane           ─cancel→ resolveQueue({ kind: "close" })
 Interaction         ─cancel→ resolveInteraction(id, cancelResponse)
 running turn        ─cancel→ ChatProtocol.cancel()
 ```
