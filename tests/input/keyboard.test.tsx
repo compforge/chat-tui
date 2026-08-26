@@ -114,7 +114,7 @@ function OverridableInput(props: { events: string[] }): ReactNode {
       ...binding,
       cmd: () => props.events.push(binding.key),
     })),
-  }));
+  }), [keybinds]);
   return <input focused />;
 }
 
@@ -146,5 +146,20 @@ describe("keybind overrides", () => {
     setup.mockInput.pressEscape();
     await setup.flush();
     expect(events).toEqual(["ctrl+x"]);
+
+    root.render(
+      createElement(
+        InputProvider,
+        { keybinds: { "turn.cancel": "ctrl+z" } },
+        createElement(OverridableInput, { events }),
+      ),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await setup.flush();
+
+    setup.mockInput.pressKey("x", { ctrl: true });
+    setup.mockInput.pressKey("z", { ctrl: true });
+    await setup.flush();
+    expect(events).toEqual(["ctrl+x", "ctrl+z"]);
   });
 });

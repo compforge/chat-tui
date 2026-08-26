@@ -30,6 +30,7 @@ export {
 export {
   defaultKeybinds,
   editorKeyBindings,
+  keybindHint,
   layerBindings,
   resolveKeybinds,
   type KeybindAction,

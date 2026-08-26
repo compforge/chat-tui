@@ -34,7 +34,7 @@ import {
   useInputBindings,
   useKeybindOverrides,
 } from "../../input/keyboard.tsx";
-import { layerBindings } from "../../input/keybinds.ts";
+import { keybindHint, layerBindings } from "../../input/keybinds.ts";
 import type { ChatProtocol, QueueIntent } from "../../protocol/chat-protocol.ts";
 import type { CommandSpec } from "../../protocol/command.ts";
 import type { InteractionView } from "../../state/composer.ts";
@@ -42,9 +42,6 @@ import type { ToastMessage } from "../../state/footer.ts";
 import type { ChatStore } from "../../store/chat-store.ts";
 import { useStoreState } from "../../store/react.ts";
 import { type Theme } from "../../theme.ts";
-
-const CTRL_C_EXIT_HINT = "Press Ctrl+C again to exit";
-const CTRL_C_CLEARED_HINT = "Draft cleared; press Ctrl+C again to exit";
 
 export interface ComposerSurfaceProps {
   protocol: ChatProtocol;
@@ -173,6 +170,8 @@ export const ComposerSurface = memo(function ComposerSurface(
 
   const busy = composerView.busy ?? false;
   const keybinds = useKeybindOverrides();
+  const clearOrExitHint =
+    keybindHint("composer.clear-or-exit", keybinds) ?? "the exit key";
   useInputBindings(() => ({
     priority: INPUT_LAYER_PRIORITY.surface,
     commands: [
@@ -185,11 +184,13 @@ export const ComposerSurface = memo(function ComposerSurface(
             releaseEditingSuggestion();
             resetComposer();
             setSuggIdx(0);
-            exitConfirmation.arm(CTRL_C_CLEARED_HINT);
+            exitConfirmation.arm(
+              `Draft cleared; press ${clearOrExitHint} again to exit`,
+            );
           } else if (action === "exit") {
             void protocol.exit();
           } else {
-            exitConfirmation.arm(CTRL_C_EXIT_HINT);
+            exitConfirmation.arm(`Press ${clearOrExitHint} again to exit`);
           }
         },
       },
@@ -282,7 +283,7 @@ export const ComposerSurface = memo(function ComposerSurface(
       ],
       keybinds,
     ),
-  }));
+  }), [keybinds]);
 
   const acceptSuggestion = useCallback(
     (key: "tab" | "enter") => {
@@ -294,7 +295,7 @@ export const ComposerSurface = memo(function ComposerSurface(
         void send(accepted.text);
       } else {
         setDraft(accepted.text);
-        composer.current?.setText(accepted.text);
+        composer.current?.editText(accepted.text);
         setSuggIdx(0);
       }
     },
@@ -320,12 +321,15 @@ export const ComposerSurface = memo(function ComposerSurface(
   const handleQueueIntent = useCallback(
     async (intent: QueueIntent) => {
       if (!protocol.resolveQueue) return;
-      if (intent.kind === "recall" && draft) {
-        setLocalToast({
-          text: "Clear the composer before recalling a queued message",
-          tone: "info",
-        });
-        return;
+      if (intent.kind === "recall") {
+        exitConfirmation.disarm();
+        if (draft) {
+          setLocalToast({
+            text: "Clear the composer before recalling a queued message",
+            tone: "info",
+          });
+          return;
+        }
       }
       try {
         const result = await protocol.resolveQueue(intent);
@@ -348,7 +352,13 @@ export const ComposerSurface = memo(function ComposerSurface(
         });
       }
     },
-    [draft, protocol, releaseEditingSuggestion, setLocalToast],
+    [
+      draft,
+      exitConfirmation.disarm,
+      protocol,
+      releaseEditingSuggestion,
+      setLocalToast,
+    ],
   );
 
   return (

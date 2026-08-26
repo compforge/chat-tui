@@ -36,7 +36,7 @@ export const SidecarSurface = memo(function SidecarSurface(
       },
     }],
     bindings: layerBindings(["sidecar.dismiss"], keybinds),
-  }));
+  }), [keybinds]);
 
   if (!state || layout === "hidden") return null;
   if (layout === "inline") {

@@ -150,7 +150,7 @@ export function Transcript(props: TranscriptProps): ReactNode {
       ["transcript.toggle-expanded", "transcript.copy-last-message"],
       keybinds,
     ),
-  }));
+  }), [keybinds]);
   const { width: termWidth } = useTerminalDimensions();
   const clip: ClipContext = {
     policy: props.clipPolicy ?? defaultClipPolicy,

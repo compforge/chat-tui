@@ -65,6 +65,18 @@ describe("foldPaste / expandPasteTokens", () => {
     expect(expanded).toBe(`check this ${multiline}\nand ${"x".repeat(300)} please`);
   });
 
+  test("does not expand token-shaped text inside another pasted chunk", () => {
+    const board = createPasteBoard();
+    const firstContent = "mentions [Pasted #2 ~3 lines] literally\nline 2\nline 3";
+    const first = foldPaste(board, firstContent);
+    const secondContent = "other\ncontent\nhere";
+    const second = foldPaste(board, secondContent);
+
+    expect(expandPasteTokens(`${first}\n${second}`, board)).toBe(
+      `${firstContent}\n${secondContent}`,
+    );
+  });
+
   test("look-alike text typed by hand is left untouched", () => {
     const board = createPasteBoard();
     expandPasteTokens("[Pasted #9 ~3 lines]", board);

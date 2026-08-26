@@ -5,9 +5,13 @@ import {
   type TestRendererSetup,
 } from "@opentui/core/testing";
 import { createRoot, type Root } from "@opentui/react";
-import { createElement } from "react";
+import { createElement, createRef } from "react";
 
-import { ComposerEditor, InputProvider } from "../../../src/index.ts";
+import {
+  ComposerEditor,
+  InputProvider,
+  type ComposerHandle,
+} from "../../../src/index.ts";
 
 let mounted: { root: Root; setup: TestRendererSetup } | null = null;
 
@@ -22,6 +26,7 @@ const multiline = Array.from({ length: 12 }, (_, i) => `line ${i + 1}`).join("\n
 async function mount(props: {
   onChange?: (text: string) => void;
   onSubmit?: (text: string) => void;
+  editorRef?: ReturnType<typeof createRef<ComposerHandle>>;
 }) {
   const setup = await createTestRenderer({
     width: 80,
@@ -35,6 +40,7 @@ async function mount(props: {
       InputProvider,
       null,
       createElement(ComposerEditor, {
+        ref: props.editorRef,
         focused: true,
         onChange: props.onChange ?? (() => undefined),
         onSubmit: props.onSubmit ?? (() => undefined),
@@ -55,15 +61,28 @@ function bufferText(setup: TestRendererSetup): string {
 describe("ComposerEditor paste folding", () => {
   test("a large bracketed paste becomes an atomic token and submits the original", async () => {
     const submitted: string[] = [];
-    const setup = await mount({ onSubmit: (text) => submitted.push(text) });
+    const editorRef = createRef<ComposerHandle>();
+    const setup = await mount({
+      editorRef,
+      onSubmit: (text) => submitted.push(text),
+    });
 
     await setup.mockInput.pasteBracketedText(multiline);
     await setup.flush();
     expect(bufferText(setup)).toBe("[Pasted #1 ~12 lines]");
 
+    editorRef.current?.editText(`review ${bufferText(setup)}`);
     setup.mockInput.pressEnter();
     await setup.flush();
-    expect(submitted).toEqual([multiline]);
+    expect(submitted).toEqual([`review ${multiline}`]);
+
+    editorRef.current?.setText("[Pasted #1 ~12 lines]");
+    setup.mockInput.pressEnter();
+    await setup.flush();
+    expect(submitted).toEqual([
+      `review ${multiline}`,
+      "[Pasted #1 ~12 lines]",
+    ]);
   });
 
   test("a small paste keeps the default verbatim behavior", async () => {
@@ -99,4 +118,5 @@ describe("ComposerEditor paste folding", () => {
       "[Pasted #1 ~12 lines][Pasted #2 300 chars]",
     );
   });
+
 });

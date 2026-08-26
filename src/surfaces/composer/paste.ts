@@ -58,11 +58,16 @@ function escapeRegExp(text: string): string {
 
 /** 提交时把 buffer 里的 token 展开回完整原文；未知 token（如手敲的同形文本）保持原样。 */
 export function expandPasteTokens(text: string, board: PasteBoard): string {
-  let expanded = text;
-  for (const chunk of board.chunks) {
-    expanded = expanded.replaceAll(chunk.token, () => chunk.content);
-  }
-  return expanded;
+  if (board.chunks.length === 0) return text;
+  const contents = new Map(
+    board.chunks.map((chunk) => [chunk.token, chunk.content] as const),
+  );
+  const tokens = new RegExp(
+    board.chunks.map((chunk) => escapeRegExp(chunk.token)).join("|"),
+    "g",
+  );
+  // 单次扫描只替换 buffer 原有 token，不能再次扫描刚展开的粘贴内容。
+  return text.replace(tokens, (token) => contents.get(token) ?? token);
 }
 
 export interface PasteTokenRange {

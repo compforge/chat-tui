@@ -19,8 +19,15 @@ import {
 } from "../../../../src/index.ts";
 import type { InteractionResponse } from "../../../../src/index.ts";
 import type { QueueIntent } from "../../../../src/index.ts";
+import type { KeybindOverrides } from "../../../../src/index.ts";
 
 let mounted: { root: Root; setup: TestRendererSetup } | null = null;
+
+function rendererItems(setup: TestRendererSetup): Renderable[] {
+  return [...Renderable.renderablesByNumber.values()].filter(
+    (renderable) => renderable.ctx === setup.renderer,
+  );
+}
 
 afterEach(() => {
   mounted?.root.unmount();
@@ -33,6 +40,7 @@ function testProtocol(initial: Partial<ChatState> = {}) {
   const turnCancels: string[] = [];
   const pickerResults: Array<{ id: string; value: string | null }> = [];
   const sidecarDismisses: string[] = [];
+  const exits: string[] = [];
   const stateStore = createChatStore({
     timeline: { items: [] },
     composer: {},
@@ -48,7 +56,9 @@ function testProtocol(initial: Partial<ChatState> = {}) {
     cancel: () => {
       turnCancels.push("cancel");
     },
-    exit: () => {},
+    exit: () => {
+      exits.push("exit");
+    },
     resolvePicker: (id, value) => {
       pickerResults.push({ id, value });
     },
@@ -66,6 +76,7 @@ function testProtocol(initial: Partial<ChatState> = {}) {
     turnCancels,
     pickerResults,
     sidecarDismisses,
+    exits,
     stateStore,
   };
 }
@@ -76,6 +87,7 @@ async function mount(
     width: 90,
     height: 14,
   },
+  keybinds?: KeybindOverrides,
 ) {
   const setup = await createTestRenderer({
     width: dimensions.width,
@@ -85,10 +97,10 @@ async function mount(
   });
   const root = createRoot(setup.renderer);
   mounted = { root, setup };
-  root.render(createElement(ChatShell, { protocol, commands: [] }));
+  root.render(createElement(ChatShell, { protocol, commands: [], keybinds }));
   await new Promise((resolve) => setTimeout(resolve, 0));
   await setup.flush();
-  const composer = [...Renderable.renderablesByNumber.values()].find(
+  const composer = rendererItems(setup).find(
     (renderable): renderable is TextareaRenderable =>
       renderable instanceof TextareaRenderable,
   );
@@ -166,7 +178,7 @@ describe("InteractionDock", () => {
     }
     await setup.flush();
 
-    const currentComposer = [...Renderable.renderablesByNumber.values()].find(
+    const currentComposer = rendererItems(setup).find(
       (renderable): renderable is TextareaRenderable =>
         renderable instanceof TextareaRenderable,
     );
@@ -175,7 +187,7 @@ describe("InteractionDock", () => {
     expect(composerReads).toBe(0);
   });
 
-  test("shows a suggested input without overwriting the composer", async () => {
+  test("shows a suggested input with effective key hints without overwriting the composer", async () => {
     const harness = testProtocol({
       composer: {
         interactions: [{
@@ -189,11 +201,15 @@ describe("InteractionDock", () => {
         }],
       },
     });
-    const { setup, composer } = await mount(harness.protocol, {
-      width: 120,
-      height: 32,
-    });
-    const suggestion = [...Renderable.renderablesByNumber.values()].find(
+    const { setup, composer } = await mount(
+      harness.protocol,
+      { width: 120, height: 32 },
+      {
+        "suggested-input.use": "ctrl+u",
+        "suggested-input.dismiss": "ctrl+d",
+      },
+    );
+    const suggestion = rendererItems(setup).find(
       (renderable): renderable is BoxRenderable =>
         renderable instanceof BoxRenderable &&
         renderable.title === "Needs your attention",
@@ -204,8 +220,8 @@ describe("InteractionDock", () => {
     expect(suggestion?.height).toBe(18);
     expect(setup.captureCharFrame()).toContain("Needs your attention");
     expect(setup.captureCharFrame()).toContain("Review the previous turn");
-    expect(setup.captureCharFrame()).toContain("Use in composer  (Ctrl+Y)");
-    expect(setup.captureCharFrame()).toContain("Dismiss  (Ctrl+C)");
+    expect(setup.captureCharFrame()).toContain("Use in composer  (Ctrl+U)");
+    expect(setup.captureCharFrame()).toContain("Dismiss  (Ctrl+D)");
   });
 
   test("chooses a visible suggestion action with arrow keys and Enter", async () => {
@@ -222,7 +238,7 @@ describe("InteractionDock", () => {
       },
     });
     const { setup } = await mount(harness.protocol);
-    const select = [...Renderable.renderablesByNumber.values()].find(
+    const select = rendererItems(setup).find(
       (renderable): renderable is SelectRenderable =>
         renderable instanceof SelectRenderable,
     );
@@ -345,7 +361,7 @@ describe("InteractionDock", () => {
     });
     const { setup } = await mount(harness.protocol);
 
-    const choices = [...Renderable.renderablesByNumber.values()].find(
+    const choices = rendererItems(setup).find(
       (renderable): renderable is SelectRenderable =>
         renderable instanceof SelectRenderable,
     );
@@ -435,6 +451,8 @@ describe("InteractionDock", () => {
 
     expect(setup.captureCharFrame()).toContain("Queued follow-ups");
     expect(setup.captureCharFrame()).toContain("line three…");
+    setup.mockInput.pressCtrlC();
+    await setup.flush();
     setup.mockInput.pressArrow("down");
     await new Promise((resolve) => setTimeout(resolve, 0));
     await setup.flush();
@@ -443,6 +461,12 @@ describe("InteractionDock", () => {
 
     expect(intents).toEqual([{ kind: "recall", itemId: "m_second" }]);
     expect(composer.plainText).toBe("second\nline two\nline three\nline four");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await setup.flush();
+    setup.mockInput.pressCtrlC();
+    await setup.waitFor(() => composer.plainText === "");
+
+    expect(harness.exits).toEqual([]);
   });
 
   test("the topmost sidecar overlay handles Esc before an interaction", async () => {

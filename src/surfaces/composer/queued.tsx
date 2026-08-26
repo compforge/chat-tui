@@ -5,7 +5,7 @@ import {
   useInputBindings,
   useKeybindOverrides,
 } from "../../input/keyboard.tsx";
-import { layerBindings } from "../../input/keybinds.ts";
+import { keybindHint, layerBindings } from "../../input/keybinds.ts";
 import type { QueueIntent } from "../../protocol/chat-protocol.ts";
 import type {
   QueueItemAction,
@@ -184,7 +184,28 @@ export function QueuePane(props: QueuePaneProps): ReactNode {
       ],
       keybinds,
     ),
-  }));
+  }), [keybinds]);
+
+  const selectHint = [
+    keybindHint("queue.previous", keybinds),
+    keybindHint("queue.next", keybinds),
+  ].filter((hint): hint is string => Boolean(hint)).join("/");
+  const moveHint = [
+    keybindHint("queue.move-up", keybinds),
+    keybindHint("queue.move-down", keybinds),
+  ].filter((hint): hint is string => Boolean(hint)).join("/");
+  const recallHint = keybindHint("queue.recall", keybinds);
+  const discardHint = keybindHint("queue.discard", keybinds);
+  const dispatchHint = keybindHint("queue.dispatch-now", keybinds);
+  const closeHint = keybindHint("queue.cancel", keybinds);
+  const help = [
+    selectHint ? `${selectHint} select` : undefined,
+    recallHint ? `${recallHint} recall` : undefined,
+    discardHint ? `${discardHint} discard` : undefined,
+    moveHint ? `${moveHint} reorder` : undefined,
+    dispatchHint ? `${dispatchHint} dispatch` : undefined,
+    closeHint ? `${closeHint} close` : undefined,
+  ].filter((hint): hint is string => Boolean(hint)).join(" · ");
 
   const first = Math.max(
     0,
@@ -221,9 +242,7 @@ export function QueuePane(props: QueuePaneProps): ReactNode {
         );
       })}
       {items.length === 0 ? <text fg={theme.dim}>Queue is empty</text> : null}
-      <text fg={theme.dim}>
-        ↑/↓ select · Enter recall · d discard · Alt+↑/↓ reorder · Ctrl+S dispatch · Esc close
-      </text>
+      {help ? <text fg={theme.dim}>{help}</text> : null}
     </box>
   );
 }

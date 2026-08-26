@@ -6,7 +6,7 @@ import {
   useInputBindings,
   useKeybindOverrides,
 } from "../../../input/keyboard.tsx";
-import { layerBindings } from "../../../input/keybinds.ts";
+import { keybindHint, layerBindings } from "../../../input/keybinds.ts";
 import { defaultTheme, type Theme } from "../../../theme.ts";
 import { MarqueeText } from "../../../terminal/marquee.tsx";
 import type { Candidate } from "../completion.ts";
@@ -76,8 +76,22 @@ export function Suggestions(props: SuggestionsProps): ReactNode {
       ],
       keybinds,
     ),
-  }));
+  }), [keybinds]);
   if (props.candidates.length === 0) return null;
+  const acceptHint = [
+    keybindHint("suggestions.accept-tab", keybinds),
+    keybindHint("suggestions.accept-enter", keybinds),
+  ].filter((hint): hint is string => Boolean(hint)).join("/");
+  const selectHint = [
+    keybindHint("suggestions.previous", keybinds),
+    keybindHint("suggestions.next", keybinds),
+  ].filter((hint): hint is string => Boolean(hint)).join("/");
+  const dismissHint = keybindHint("suggestions.dismiss", keybinds);
+  const help = [
+    acceptHint ? `${acceptHint} accept` : undefined,
+    selectHint ? `${selectHint} select` : undefined,
+    dismissHint ? `${dismissHint} close` : undefined,
+  ].filter((hint): hint is string => Boolean(hint)).join(" · ");
   const groupHeadings = props.candidates.reduce(
     (count, candidate, index) =>
       candidate.group &&
@@ -90,7 +104,7 @@ export function Suggestions(props: SuggestionsProps): ReactNode {
     <box
       border
       borderColor={theme.border}
-      title="Suggestions (Tab/Enter accept · ↑↓ select · Esc close)"
+      title={`Suggestions${help ? ` (${help})` : ""}`}
       style={{
         position: "absolute",
         left: 2,

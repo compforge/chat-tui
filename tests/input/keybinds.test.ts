@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   defaultKeybinds,
   editorKeyBindings,
+  keybindHint,
   layerBindings,
   resolveKeybinds,
   type KeybindAction,
@@ -67,6 +68,20 @@ describe("resolveKeybinds", () => {
     expect(
       resolved.some((binding) => binding.action === "transcript.toggle-expanded"),
     ).toBe(false);
+  });
+});
+
+describe("keybindHint", () => {
+  test("formats effective keys for UI text and honors overrides", () => {
+    expect(keybindHint("suggested-input.use")).toBe("Ctrl+Y");
+    expect(keybindHint("composer.submit")).toBe("Enter");
+    expect(keybindHint("queue.move-up")).toBe("Alt+↑");
+    expect(keybindHint("suggested-input.use", {
+      "suggested-input.use": "ctrl+u",
+    })).toBe("Ctrl+U");
+    expect(keybindHint("suggested-input.use", {
+      "suggested-input.use": null,
+    })).toBeUndefined();
   });
 });
 

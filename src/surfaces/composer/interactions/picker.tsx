@@ -143,7 +143,7 @@ export function Picker(props: PickerProps): ReactNode {
       ["picker.cancel", "picker.previous", "picker.next", "picker.confirm"],
       keybinds,
     ),
-  }));
+  }), [keybinds]);
   return (
     <box
       title={props.picker.title}

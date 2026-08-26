@@ -30,8 +30,10 @@ export const COMPOSER_KEY_BINDINGS: NonNullable<TextareaOptions["keyBindings"]> 
   editorKeyBindings();
 
 export interface ComposerHandle {
-  /** 覆写输入内容并把光标移到末尾（用于队列召回、补全等） */
+  /** 用独立文本替换输入内容并清除旧粘贴 token（用于队列召回、历史等） */
   setText(text: string): void;
+  /** 应用基于当前输入计算出的编辑，同时保留仍在文本中的粘贴 token（用于补全） */
+  editText(text: string): void;
   clear(): void;
   focus(): void;
   /**
@@ -92,6 +94,11 @@ export const ComposerEditor = memo(function ComposerEditor(
 
   useImperativeHandle(props.ref, () => ({
     setText(text: string) {
+      pasteBoard.current = createPasteBoard();
+      textarea.current?.setText(text);
+      textarea.current?.gotoBufferEnd();
+    },
+    editText(text: string) {
       textarea.current?.setText(text);
       textarea.current?.gotoBufferEnd();
     },

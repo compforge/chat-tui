@@ -61,7 +61,7 @@ export function QuestionCard(props: QuestionCardProps): ReactNode {
       },
     }],
     bindings: layerBindings(["question.cancel-edit"], keybinds),
-  }));
+  }), [keybinds]);
 
   useEffect(() => {
     setQuestionIndex(0);

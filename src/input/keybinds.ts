@@ -289,6 +289,41 @@ export function resolveKeybinds(
   return resolved;
 }
 
+const KEY_HINT_PARTS: Readonly<Record<string, string>> = {
+  alt: "Alt",
+  ctrl: "Ctrl",
+  down: "↓",
+  escape: "Esc",
+  kpenter: "Enter",
+  meta: "Meta",
+  return: "Enter",
+  shift: "Shift",
+  tab: "Tab",
+  up: "↑",
+};
+
+function displayKeybind(key: string): string {
+  return key
+    .split("+")
+    .map((part) =>
+      KEY_HINT_PARTS[part] ??
+      (part.length === 1 ? part.toUpperCase() : part)
+    )
+    .join("+");
+}
+
+/** 当前 action 的可见键位提示；多键默认值去重后用 `/` 连接，解绑时不显示提示。 */
+export function keybindHint(
+  action: KeybindAction,
+  overrides?: KeybindOverrides,
+): string | undefined {
+  const hints = resolveKeybinds(overrides)
+    .filter((binding) => binding.action === action)
+    .map((binding) => displayKeybind(binding.key));
+  const unique = [...new Set(hints)];
+  return unique.length > 0 ? unique.join("/") : undefined;
+}
+
 /** keymap 层绑定（useInputBindings 的 bindings 元素形状；desc/group 供帮助展示）。 */
 export interface KeybindLayerBinding {
   key: string;
@@ -333,7 +368,7 @@ export function editorKeyBindings(
     }));
 }
 
-/** "ctrl+shift+y" → { name: "y", ctrl: true, shift: true }；无法识别的修饰键留在 name 里让下游报错。 */
+/** "ctrl+shift+y" → { name: "y", ctrl: true, shift: true }；仅解析 textarea 支持的修饰键。 */
 export function parseKeybindKey(key: string): {
   name: string;
   ctrl?: boolean;
