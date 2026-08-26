@@ -9,6 +9,8 @@ import type {
 } from "@opentui/keymap";
 import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui";
 import { useRenderer } from "@opentui/react";
+
+import type { KeybindOverrides } from "./keybinds.ts";
 import {
   createContext,
   useContext,
@@ -49,6 +51,9 @@ export const INPUT_LAYER_PRIORITY = {
 
 const keymaps = new WeakMap<CliRenderer, InputKeymap>();
 const InputContext = createContext<InputKeymap | null>(null);
+const KeybindOverridesContext = createContext<KeybindOverrides | undefined>(
+  undefined,
+);
 
 function inputKeymap(renderer: CliRenderer): InputKeymap {
   const existing = keymaps.get(renderer);
@@ -60,6 +65,11 @@ function inputKeymap(renderer: CliRenderer): InputKeymap {
 
 export interface InputProviderProps {
   children?: ReactNode;
+  /**
+   * 用户级键位覆盖（action → 替换键，null 解绑；见 input/keybinds.ts）。
+   * 由最外层 provider 持有；嵌套 provider 复用外层 keymap 时沿用其覆盖。
+   */
+  keybinds?: KeybindOverrides;
 }
 
 /**
@@ -77,9 +87,16 @@ export function InputProvider(props: InputProviderProps): ReactNode {
   if (inherited) return props.children;
   return (
     <InputContext.Provider value={keymap}>
-      {props.children}
+      <KeybindOverridesContext.Provider value={props.keybinds}>
+        {props.children}
+      </KeybindOverridesContext.Provider>
     </InputContext.Provider>
   );
+}
+
+/** 当前输入边界的键位覆盖；无 InputProvider 或未传 keybinds 时为 undefined（全默认）。 */
+export function useKeybindOverrides(): KeybindOverrides | undefined {
+  return useContext(KeybindOverridesContext);
 }
 
 /**

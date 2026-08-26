@@ -4,7 +4,9 @@ import { Fragment, type ReactNode } from "react";
 import {
   INPUT_LAYER_PRIORITY,
   useInputBindings,
+  useKeybindOverrides,
 } from "../../../input/keyboard.tsx";
+import { layerBindings } from "../../../input/keybinds.ts";
 import { defaultTheme, type Theme } from "../../../theme.ts";
 import { MarqueeText } from "../../../terminal/marquee.tsx";
 import type { Candidate } from "../completion.ts";
@@ -24,6 +26,7 @@ export interface SuggestionsProps {
 export function Suggestions(props: SuggestionsProps): ReactNode {
   const theme = props.theme ?? defaultTheme;
   const terminal = useTerminalDimensions();
+  const keybinds = useKeybindOverrides();
   useInputBindings(() => ({
     priority: INPUT_LAYER_PRIORITY.popup,
     commands: [
@@ -63,14 +66,16 @@ export function Suggestions(props: SuggestionsProps): ReactNode {
         },
       },
     ],
-    bindings: [
-      { key: "up", cmd: "suggestions.previous" },
-      { key: "down", cmd: "suggestions.next" },
-      { key: "tab", cmd: "suggestions.accept-tab" },
-      { key: "return", cmd: "suggestions.accept-enter" },
-      { key: "kpenter", cmd: "suggestions.accept-enter" },
-      { key: "escape", cmd: "suggestions.dismiss" },
-    ],
+    bindings: layerBindings(
+      [
+        "suggestions.previous",
+        "suggestions.next",
+        "suggestions.accept-tab",
+        "suggestions.accept-enter",
+        "suggestions.dismiss",
+      ],
+      keybinds,
+    ),
   }));
   if (props.candidates.length === 0) return null;
   const groupHeadings = props.candidates.reduce(

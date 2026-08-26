@@ -12,7 +12,9 @@ import type { QuestionView } from "../../../state/composer.ts";
 import {
   INPUT_LAYER_PRIORITY,
   useInputBindings,
+  useKeybindOverrides,
 } from "../../../input/keyboard.tsx";
+import { layerBindings } from "../../../input/keybinds.ts";
 import { ellipsize } from "../../../terminal/text.ts";
 import { defaultTheme, type Theme } from "../../../theme.ts";
 import { questionCardLayout } from "./question.ts";
@@ -43,6 +45,7 @@ export function QuestionCard(props: QuestionCardProps): ReactNode {
   const [otherMode, setOtherMode] = useState(false);
   const [focusedOption, setFocusedOption] = useState(0);
   const input = useRef<InputRenderable | null>(null);
+  const keybinds = useKeybindOverrides();
 
   useInputBindings(() => ({
     priority: INPUT_LAYER_PRIORITY.editing,
@@ -57,12 +60,7 @@ export function QuestionCard(props: QuestionCardProps): ReactNode {
         setOtherMode(false);
       },
     }],
-    bindings: [{
-      key: "escape",
-      desc: "Return to question choices",
-      group: "Question",
-      cmd: "question.cancel-edit",
-    }],
+    bindings: layerBindings(["question.cancel-edit"], keybinds),
   }));
 
   useEffect(() => {

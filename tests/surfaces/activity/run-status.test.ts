@@ -1,7 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
 import { formatElapsed } from "../../../src/index.ts";
-import { runStatusParts, runStatusSpinner, runStatusTail } from "../../../src/index.ts";
+import {
+  activityTipFor,
+  activityTipTail,
+  runStatusParts,
+  runStatusSpinner,
+  runStatusTail,
+} from "../../../src/index.ts";
 
 describe("formatElapsed", () => {
   test("mm:ss within the first hour", () => {
@@ -46,5 +52,35 @@ describe("runStatusSpinner", () => {
     expect(runStatusSpinner(80)).toBe("⠙");
     expect(runStatusSpinner(800)).toBe("⠋");
     expect(runStatusSpinner(-1)).toBe("⠋");
+  });
+});
+
+describe("activityTipFor", () => {
+  test("rotates through the corpus and wraps around", () => {
+    const tips = ["one", "two", "three"];
+    expect(activityTipFor(tips, 0)).toBe("one");
+    expect(activityTipFor(tips, 1)).toBe("two");
+    expect(activityTipFor(tips, 3)).toBe("one");
+    expect(activityTipFor(tips, 7)).toBe("two");
+  });
+
+  test("returns null without a corpus", () => {
+    expect(activityTipFor([], 0)).toBeNull();
+  });
+});
+
+describe("activityTipTail", () => {
+  test("prefixes and fits within budget", () => {
+    expect(activityTipTail("short", 40)).toBe(" · Tip: short");
+  });
+
+  test("truncates with an ellipsis when over budget", () => {
+    const tail = activityTipTail("a fairly long tip that will not fit", 20);
+    expect(tail).toBe(" · Tip: a fairly lo…");
+    expect(tail?.endsWith("…")).toBe(true);
+  });
+
+  test("returns null when the budget cannot hold even a stub", () => {
+    expect(activityTipTail("anything", 10)).toBeNull();
   });
 });

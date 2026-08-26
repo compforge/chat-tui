@@ -20,11 +20,22 @@ export {
   InputProvider,
   INPUT_LAYER_PRIORITY,
   useInputBindings,
+  useKeybindOverrides,
   type InputBindingLayer,
   type InputKeymap,
   type InputProviderProps,
   type InputTargetRef,
 } from "./input/keyboard.tsx";
+export {
+  defaultKeybinds,
+  editorKeyBindings,
+  layerBindings,
+  resolveKeybinds,
+  type KeybindAction,
+  type KeybindDefinition,
+  type KeybindOverrides,
+  type ResolvedKeybind,
+} from "./input/keybinds.ts";
 
 export { ChatShell, type ChatShellProps } from "./shell/chat-shell.tsx";
 export {
@@ -120,9 +131,12 @@ export {
 } from "./surfaces/parallel/parallel.tsx";
 export {
   RunStatus,
+  activityTipFor,
+  activityTipTail,
   runStatusParts,
   runStatusSpinner,
   runStatusTail,
+  TIP_ROTATE_MS,
   type RunStatusProps,
 } from "./surfaces/activity/run-status.tsx";
 

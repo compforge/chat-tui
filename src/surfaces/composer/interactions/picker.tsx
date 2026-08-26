@@ -8,7 +8,9 @@ import {
 import {
   INPUT_LAYER_PRIORITY,
   useInputBindings,
+  useKeybindOverrides,
 } from "../../../input/keyboard.tsx";
+import { layerBindings } from "../../../input/keybinds.ts";
 import type { PickerView } from "../../../state/composer.ts";
 import {
   MARQUEE_INTERVAL_MS,
@@ -97,6 +99,7 @@ export function Picker(props: PickerProps): ReactNode {
       : undefined;
   const searchRows = props.picker.search ? 3 : 0;
   const statusRows = status ? 1 : 0;
+  const keybinds = useKeybindOverrides();
   useInputBindings(() => ({
     priority: INPUT_LAYER_PRIORITY.popup,
     commands: [
@@ -136,38 +139,10 @@ export function Picker(props: PickerProps): ReactNode {
         },
       },
     ],
-    bindings: [
-      {
-        key: "escape",
-        desc: "Clear picker query or close picker",
-        group: "Picker",
-        cmd: "picker.cancel",
-      },
-      {
-        key: "up",
-        desc: "Previous picker option",
-        group: "Picker",
-        cmd: "picker.previous",
-      },
-      {
-        key: "down",
-        desc: "Next picker option",
-        group: "Picker",
-        cmd: "picker.next",
-      },
-      {
-        key: "return",
-        desc: "Choose picker option",
-        group: "Picker",
-        cmd: "picker.confirm",
-      },
-      {
-        key: "kpenter",
-        desc: "Choose picker option",
-        group: "Picker",
-        cmd: "picker.confirm",
-      },
-    ],
+    bindings: layerBindings(
+      ["picker.cancel", "picker.previous", "picker.next", "picker.confirm"],
+      keybinds,
+    ),
   }));
   return (
     <box

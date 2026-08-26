@@ -31,7 +31,9 @@ import { usePickerController } from "./picker-controller.ts";
 import {
   INPUT_LAYER_PRIORITY,
   useInputBindings,
+  useKeybindOverrides,
 } from "../../input/keyboard.tsx";
+import { layerBindings } from "../../input/keybinds.ts";
 import type { ChatProtocol } from "../../protocol/chat-protocol.ts";
 import type { CommandSpec } from "../../protocol/command.ts";
 import type { InteractionView } from "../../state/composer.ts";
@@ -167,6 +169,7 @@ export const ComposerSurface = memo(function ComposerSurface(
   );
 
   const busy = composerView.busy ?? false;
+  const keybinds = useKeybindOverrides();
   useInputBindings(() => ({
     priority: INPUT_LAYER_PRIORITY.surface,
     commands: [
@@ -265,14 +268,17 @@ export const ComposerSurface = memo(function ComposerSurface(
         },
       },
     ],
-    bindings: [
-      { key: "ctrl+c", cmd: "composer.clear-or-exit" },
-      { key: "ctrl+d", cmd: "composer.exit-eof" },
-      { key: "shift+tab", cmd: "composer.cycle-mode" },
-      { key: "escape", cmd: "turn.cancel" },
-      { key: "up", cmd: "composer.history-previous" },
-      { key: "down", cmd: "composer.history-next" },
-    ],
+    bindings: layerBindings(
+      [
+        "composer.clear-or-exit",
+        "composer.exit-eof",
+        "composer.cycle-mode",
+        "turn.cancel",
+        "composer.history-previous",
+        "composer.history-next",
+      ],
+      keybinds,
+    ),
   }));
 
   const acceptSuggestion = useCallback(

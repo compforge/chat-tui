@@ -61,14 +61,15 @@ bun examples/echo.tsx
 
 ## What you get
 
-- **Persistent composer** — multi-line editing, slash commands, mentions, input history, queued follow-ups, and layered terminal key behavior
-- **Streaming timeline** — plain or Markdown messages, stable render groups, activity blocks, plans, code, commands, output, and diffs with display-only clipping
+- **Persistent composer** — multi-line editing, slash commands, mentions, input history, queued follow-ups, and layered terminal key behavior; large pastes fold into atomic tokens and expand back to the full original on submit
+- **Streaming timeline** — plain or Markdown messages, stable render groups, activity blocks, plans, code, commands, output, and diffs with display-only clipping; global Ctrl+O expansion plus per-block expand/collapse via clip hints, and Ctrl+Shift+Y to copy the latest agent message
+- **Activity with rotating tips** — running status rows can carry harness-injected `tips`, rotated every 10s, rendered only while active
 - **Optional Parallel region** — current parallel work stays in compact items below the footer, outside the historical timeline
 - **Human interaction** — searchable pickers, permission decisions, structured questions, and suggested inputs anchored near the composer
 - **Independent Surfaces** — Timeline, Composer, Activity, Footer, optional Parallel, and Sidecar subscribe only to the State they consume
 - **Optional sidecar** — generic auxiliary State renders beside the main chat when space allows, or as an explicit overlay
 - **Composable UI** — use `ChatShell` for the complete interface or compose exported Surfaces and focused building blocks with an injectable theme
-- **Layered input routing** — components declare semantic behaviors in focus-aware layers; one matched behavior consumes a contested key
+- **Layered input routing** — components declare semantic behaviors in focus-aware layers; one matched behavior consumes a contested key. All default keys live in one exported definitions table (`defaultKeybinds`), with per-action user overrides via the `keybinds` prop
 
 ## Support and limits
 

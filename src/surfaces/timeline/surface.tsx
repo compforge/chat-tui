@@ -2,6 +2,7 @@ import { memo, type ReactNode } from "react";
 
 import type { ChatStore } from "../../store/chat-store.ts";
 import { useStoreState } from "../../store/react.ts";
+import type { ToastMessage } from "../../state/footer.ts";
 import type { Theme } from "../../theme.ts";
 import type { ClipPolicy } from "./clip.ts";
 import { PlanPinned } from "./plan.tsx";
@@ -11,6 +12,8 @@ export interface TimelineSurfaceProps {
   store: ChatStore;
   theme: Theme;
   clipPolicy?: ClipPolicy;
+  /** 操作回执出口（如复制成功 toast）；由壳接到 Footer */
+  onToast?: (toast: ToastMessage | null) => void;
 }
 
 export const TimelineSurface = memo(function TimelineSurface(
@@ -25,6 +28,7 @@ export const TimelineSurface = memo(function TimelineSurface(
         showThoughts={timeline.showThoughts}
         theme={props.theme}
         clipPolicy={props.clipPolicy}
+        onToast={props.onToast}
       />
       <PlanPinned entries={timeline.plan ?? []} theme={props.theme} />
     </>

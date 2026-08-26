@@ -12,6 +12,7 @@ import {
 import type { ChatProtocol } from "../protocol/chat-protocol.ts";
 import type { CommandSpec } from "../protocol/command.ts";
 import { InputProvider } from "../input/keyboard.tsx";
+import type { KeybindOverrides } from "../input/keybinds.ts";
 import type { ToastMessage } from "../state/footer.ts";
 import { ActivitySurface } from "../surfaces/activity/surface.tsx";
 import { ParallelSurface } from "../surfaces/parallel/surface.tsx";
@@ -34,11 +35,13 @@ export interface ChatShellProps {
   theme?: Theme;
   /** transcript 高度预算策略；缺省 defaultClipPolicy（Ctrl+O 展开/收起） */
   clipPolicy?: ClipPolicy;
+  /** 用户级键位覆盖（action → 替换键，null 解绑）；缺省全默认（见 input/keybinds.ts） */
+  keybinds?: KeybindOverrides;
 }
 
 export function ChatShell(props: ChatShellProps): ReactNode {
   return (
-    <InputProvider>
+    <InputProvider keybinds={props.keybinds}>
       <ChatShellContent {...props} />
     </InputProvider>
   );
@@ -69,6 +72,7 @@ function ChatShellContent(props: ChatShellProps): ReactNode {
           store={store}
           theme={theme}
           clipPolicy={props.clipPolicy}
+          onToast={setLocalToast}
         />
         <QueueSurface store={store} theme={theme} />
         <ActivitySurface store={store} theme={theme} />

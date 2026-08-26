@@ -1,19 +1,33 @@
-import type { TextareaOptions, TextareaRenderable } from "@opentui/core";
-import { memo, useImperativeHandle, useRef, type ReactNode, type Ref } from "react";
+import type { PasteEvent, TextareaOptions, TextareaRenderable } from "@opentui/core";
+import type { KeyEvent } from "@opentui/core";
+import {
+  memo,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  type ReactNode,
+  type Ref,
+} from "react";
 
+import { useKeybindOverrides } from "../../input/keyboard.tsx";
+import { editorKeyBindings } from "../../input/keybinds.ts";
 import { defaultTheme, type Theme } from "../../theme.ts";
+import {
+  createPasteBoard,
+  expandPasteTokens,
+  foldPaste,
+  pasteTokenAt,
+  removePasteChunk,
+  shouldFoldPaste,
+  type PasteBoard,
+} from "./paste.ts";
 
 // 对齐 chat CLI 习惯：Enter 发送；Shift+Enter / Option+Enter 换行。
 // Shift+Enter 需要终端支持 kitty keyboard 协议才能与 Enter 区分；
 // Ctrl+J 是任何终端都可用的换行兜底（走 textarea 默认的 linefeed→newline 绑定）。
-export const COMPOSER_KEY_BINDINGS: NonNullable<TextareaOptions["keyBindings"]> = [
-  { name: "return", action: "submit" },
-  { name: "kpenter", action: "submit" },
-  { name: "return", shift: true, action: "newline" },
-  { name: "kpenter", shift: true, action: "newline" },
-  { name: "return", meta: true, action: "newline" },
-  { name: "kpenter", meta: true, action: "newline" },
-];
+// 默认键位由 input/keybinds.ts 的定义表给出（composer.submit / composer.newline）。
+export const COMPOSER_KEY_BINDINGS: NonNullable<TextareaOptions["keyBindings"]> =
+  editorKeyBindings();
 
 export interface ComposerHandle {
   /** 覆写输入内容并把光标移到末尾（用于队列召回、补全等） */
@@ -47,15 +61,34 @@ export function composerHeightFor(draft: string, maxLines = 6): number {
   return Math.min(maxLines, draft.split("\n").length) + 2;
 }
 
+/** 删除整个粘贴 token：不走 selection，直接重写 buffer 并复位光标。 */
+function deleteTokenRange(
+  textarea: TextareaRenderable,
+  range: { start: number; end: number },
+): void {
+  const text = textarea.plainText;
+  textarea.setText(text.slice(0, range.start) + text.slice(range.end));
+  textarea.cursorOffset = range.start;
+}
+
 /**
  * 多行输入框。textarea 自持内部 buffer，消费方的 draft state 只是镜像
  * （供候选推导/按键分层用）——清空/覆写必须走 ComposerHandle，两边才能一致。
+ *
+ * 大段 bracketed paste 折叠为原子 token（见 paste.ts）：buffer 里只有占位文本，
+ * 原文在本组件的 PasteBoard；onSubmit 展开后才交给消费方，因此 submit 恒为完整原文。
  */
 export const ComposerEditor = memo(function ComposerEditor(
   props: ComposerEditorProps,
 ): ReactNode {
   const theme = props.theme ?? defaultTheme;
   const textarea = useRef<TextareaRenderable | null>(null);
+  const pasteBoard = useRef<PasteBoard>(createPasteBoard());
+  const keybinds = useKeybindOverrides();
+  const keyBindings = useMemo(
+    () => props.keyBindings ?? editorKeyBindings(keybinds),
+    [props.keyBindings, keybinds],
+  );
 
   useImperativeHandle(props.ref, () => ({
     setText(text: string) {
@@ -64,6 +97,8 @@ export const ComposerEditor = memo(function ComposerEditor(
     },
     clear() {
       textarea.current?.setText("");
+      // token 旁表随 buffer 一起清空：提交（onSubmit 已展开）或 Ctrl+C 清 draft 后不留孤儿
+      pasteBoard.current = createPasteBoard();
     },
     focus() {
       textarea.current?.focus();
@@ -75,6 +110,49 @@ export const ComposerEditor = memo(function ComposerEditor(
       return offset === 0 || offset === ta.plainText.length;
     },
   }));
+
+  const handlePaste = (event: PasteEvent): void => {
+    // 非文本粘贴（如 image/png）不在这里处理：留给接入方或 textarea 默认行为
+    const mime = event.metadata?.mimeType;
+    if (mime !== undefined && !mime.startsWith("text/")) return;
+    const content = new TextDecoder().decode(event.bytes);
+    if (!shouldFoldPaste(content)) return;
+    event.preventDefault();
+    const token = foldPaste(pasteBoard.current, content);
+    textarea.current?.insertText(token);
+  };
+
+  const handleKeyDown = (event: KeyEvent): void => {
+    const ta = textarea.current;
+    if (!ta || ta.hasSelection()) return;
+    const text = ta.plainText;
+    const offset = ta.cursorOffset;
+    const board = pasteBoard.current;
+    if (board.chunks.length === 0) return;
+
+    // backspace / delete 落在 token 上时整体删除，不允许部分编辑
+    if (event.name === "backspace" || event.name === "delete") {
+      const range = pasteTokenAt(
+        text,
+        board,
+        offset,
+        event.name === "backspace" ? "backward" : "forward",
+      );
+      if (!range) return;
+      event.preventDefault();
+      deleteTokenRange(ta, range);
+      removePasteChunk(board, range.token);
+      props.onChange(ta.plainText);
+      return;
+    }
+
+    // 其余编辑/移动键：光标落在 token 内部时先吸附到边界（左移去头部，其余去尾部），
+    // token 因此不可被逐字符进入
+    const inside = pasteTokenAt(text, board, offset, "inside");
+    if (inside) {
+      ta.cursorOffset = event.name === "left" ? inside.start : inside.end;
+    }
+  };
 
   return (
     <box
@@ -92,11 +170,14 @@ export const ComposerEditor = memo(function ComposerEditor(
         maxHeight={6}
         width="100%"
         cursorStyle={{ style: "line", blinking: true }}
-        keyBindings={props.keyBindings ?? COMPOSER_KEY_BINDINGS}
+        keyBindings={keyBindings}
+        onPaste={handlePaste}
+        onKeyDown={handleKeyDown}
         onContentChange={() => props.onChange(textarea.current?.plainText ?? "")}
         onSubmit={() => {
-          // textarea 的 submit 事件不带值，从内部 buffer 读
-          props.onSubmit(textarea.current?.plainText ?? "");
+          // textarea 的 submit 事件不带值，从内部 buffer 读；粘贴 token 在此展开回原文
+          const raw = textarea.current?.plainText ?? "";
+          props.onSubmit(expandPasteTokens(raw, pasteBoard.current));
         }}
       />
     </box>

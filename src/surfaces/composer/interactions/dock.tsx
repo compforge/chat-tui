@@ -8,7 +8,9 @@ import type { InteractionResponse } from "../../../protocol/interaction.ts";
 import {
   INPUT_LAYER_PRIORITY,
   useInputBindings,
+  useKeybindOverrides,
 } from "../../../input/keyboard.tsx";
+import { layerBindings } from "../../../input/keybinds.ts";
 import { defaultTheme, type Theme } from "../../../theme.ts";
 import { ApprovalCard } from "./approval-card.tsx";
 import { QuestionCard } from "./question-card.tsx";
@@ -34,6 +36,7 @@ function frameTitle(count: number): string {
  */
 export function InteractionDock(props: InteractionDockProps): ReactNode {
   const interaction = props.interactions[0];
+  const keybinds = useKeybindOverrides();
   useInputBindings(() => ({
     priority: INPUT_LAYER_PRIORITY.modal,
     commands: [
@@ -69,26 +72,10 @@ export function InteractionDock(props: InteractionDockProps): ReactNode {
         },
       },
     ],
-    bindings: [
-      {
-        key: "escape",
-        desc: "Cancel interaction",
-        group: "Interaction",
-        cmd: "interaction.cancel",
-      },
-      {
-        key: "ctrl+y",
-        desc: "Use suggested input",
-        group: "Interaction",
-        cmd: "suggested-input.use",
-      },
-      {
-        key: "ctrl+c",
-        desc: "Dismiss suggested input",
-        group: "Interaction",
-        cmd: "suggested-input.dismiss",
-      },
-    ],
+    bindings: layerBindings(
+      ["interaction.cancel", "suggested-input.use", "suggested-input.dismiss"],
+      keybinds,
+    ),
   }));
   if (!interaction) return null;
 

@@ -14,5 +14,5 @@ export const ActivitySurface = memo(function ActivitySurface(
   props: ActivitySurfaceProps,
 ): ReactNode {
   const activity = useStoreState(props.store, "activity");
-  return <RunStatus items={activity.items ?? []} theme={props.theme} />;
+  return <RunStatus items={activity.items ?? []} tips={activity.tips} theme={props.theme} />;
 });

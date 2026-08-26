@@ -52,6 +52,11 @@ class EchoHarness implements ChatProtocol {
     },
     activity: {
       items: [{ id: "agent", author: "echo", label: "demo" }],
+      tips: [
+        "Paste a long text to fold it into an atomic token",
+        "Ctrl+Shift+Y copies the latest agent message",
+        "Click a … +N lines hint to expand just that block",
+      ],
     },
     footer: {
       text: "chat-tui echo example",
