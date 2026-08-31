@@ -5,6 +5,7 @@ import { createRoot, type Root } from "@opentui/react";
 import { createElement } from "react";
 
 import { InputProvider, Transcript } from "../../../src/index.ts";
+import { createTestClipboard } from "../../clipboard.ts";
 
 let mounted: { root: Root; setup: TestRendererSetup } | null = null;
 
@@ -274,12 +275,7 @@ describe("Transcript copy last agent message", () => {
     const root = createRoot(setup.renderer);
     mounted = { root, setup };
     const copied: string[] = [];
-    const original = setup.renderer.copyToClipboardOSC52.bind(setup.renderer);
-    setup.renderer.copyToClipboardOSC52 = (text: string) => {
-      copied.push(text);
-      return true;
-    };
-    void original;
+    const clipboard = createTestClipboard((text) => copied.push(text));
     const toasts: string[] = [];
     root.render(
       createElement(
@@ -295,6 +291,7 @@ describe("Transcript copy last agent message", () => {
               text: "```ts\nconst a = 1;\n```",
             },
           ],
+          clipboard,
           onToast: (toast) => toasts.push(toast?.text ?? ""),
         }),
       ),
@@ -315,10 +312,7 @@ describe("Transcript copy last agent message", () => {
     const root = createRoot(setup.renderer);
     mounted = { root, setup };
     const copied: string[] = [];
-    setup.renderer.copyToClipboardOSC52 = (text: string) => {
-      copied.push(text);
-      return true;
-    };
+    const clipboard = createTestClipboard((text) => copied.push(text));
     const toasts: string[] = [];
     root.render(
       createElement(
@@ -326,6 +320,7 @@ describe("Transcript copy last agent message", () => {
         null,
         createElement(Transcript, {
           items: [{ type: "message", id: "u1", role: "user", text: "question" }],
+          clipboard,
           onToast: (toast) => toasts.push(toast?.text ?? ""),
         }),
       ),

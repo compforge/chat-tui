@@ -17,7 +17,12 @@ bun add chat-tui @opentui/core @opentui/keymap @opentui/react react
 Implement `ChatProtocol` and hand it to `ChatShell`:
 
 ```tsx
-import { createCliRenderer } from "@opentui/core";
+import {
+  createCliRenderer,
+  createClipboard,
+  createHostClipboard,
+  createRendererClipboardAdapter,
+} from "@opentui/core";
 import { createRoot } from "@opentui/react";
 import {
   ChatShell,
@@ -47,9 +52,19 @@ class MyHarness implements ChatProtocol {
 }
 
 const renderer = await createCliRenderer({ exitOnCtrlC: false, autoFocus: false });
+const clipboard = createClipboard({
+  host: createHostClipboard(),
+  terminal: createRendererClipboardAdapter(renderer),
+});
 createRoot(renderer).render(
-  <ChatShell protocol={new MyHarness()} commands={[{ name: "exit", description: "Exit" }]} />,
+  <ChatShell
+    protocol={new MyHarness()}
+    commands={[{ name: "exit", description: "Exit" }]}
+    clipboard={clipboard}
+  />,
 );
+
+// During graceful shutdown: await clipboard.dispose(), then renderer.destroy().
 ```
 
 Run the full demo (fake streaming harness, no agent required):
@@ -69,6 +84,7 @@ bun examples/echo.tsx
 - **Independent Surfaces** — Timeline, Composer, Activity, Footer, optional Parallel, and Sidecar subscribe only to the State they consume
 - **Optional sidecar** — generic auxiliary State renders beside the main chat when space allows, or as an explicit overlay
 - **Composable UI** — use `ChatShell` for the complete interface or compose exported Surfaces and focused building blocks with an injectable theme
+- **Native clipboard and selection** — OpenTUI owns host/terminal clipboard fallback plus click-repeat semantics; chat-tui only adds product token boundaries for paths, URLs, and IDs
 - **Layered input routing** — components declare semantic behaviors in focus-aware layers; one matched behavior consumes a contested key. All default keys live in one exported definitions table (`defaultKeybinds`), with per-action user overrides via the `keybinds` prop
 
 ## Support and limits

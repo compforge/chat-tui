@@ -65,6 +65,10 @@ harness 先把自身事件整理成当前应展示的 State，再通过 Store �
   请求执行、排队、取消和过期结果处理归 harness。
 - slash 命令表、`@` 引用源、theme 与裁剪策略由接入方注入，chat-tui 不内置具体产品或
   provider 语义。
+- OpenTUI 已稳定提供的终端能力直接作为 Surface 依赖注入，不进入 `ChatProtocol`，也不在
+  chat-tui 内维护平行实现。当前剪贴板直接使用 OpenTUI `ClipboardService`，由 renderer 所有者
+  创建并在 `renderer.destroy()` 前释放；双击/三击计数由 OpenTUI 维护，chat-tui 只扩展路径、
+  URL 与 ID 等产品 token 的边界。
 
 ### 代码边界
 

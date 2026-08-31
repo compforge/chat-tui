@@ -1,3 +1,4 @@
+import type { ClipboardService } from "@opentui/core";
 import { memo, type ReactNode } from "react";
 
 import type { ChatStore } from "../../store/chat-store.ts";
@@ -11,6 +12,7 @@ import { Transcript } from "./transcript.tsx";
 export interface TimelineSurfaceProps {
   store: ChatStore;
   theme: Theme;
+  clipboard?: ClipboardService;
   clipPolicy?: ClipPolicy;
   /** 操作回执出口（如复制成功 toast）；由壳接到 Footer */
   onToast?: (toast: ToastMessage | null) => void;
@@ -28,6 +30,7 @@ export const TimelineSurface = memo(function TimelineSurface(
         showThoughts={timeline.showThoughts}
         theme={props.theme}
         clipPolicy={props.clipPolicy}
+        clipboard={props.clipboard}
         onToast={props.onToast}
       />
       <PlanPinned entries={timeline.plan ?? []} theme={props.theme} />

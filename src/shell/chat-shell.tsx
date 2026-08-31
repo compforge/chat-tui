@@ -1,9 +1,7 @@
 // ChatShell：把 ChatProtocol 接到独立 Surface，并编排全局布局与文本选择。
 
-import {
-  useRenderer,
-  useSelectionHandler,
-} from "@opentui/react";
+import type { ClipboardService } from "@opentui/core";
+import { useSelectionHandler } from "@opentui/react";
 import {
   useState,
   type ReactNode,
@@ -28,6 +26,8 @@ import { useTokenSelectionOnDoubleClick } from "./token-selection.ts";
 
 export interface ChatShellProps {
   protocol: ChatProtocol;
+  /** OpenTUI 剪贴板服务；由 renderer 的所有者创建，并在 renderer.destroy() 前 dispose。 */
+  clipboard: ClipboardService;
   /** slash 命令表（补全 + 识别）；语义执行走 protocol.command() */
   commands: readonly CommandSpec[];
   /** @ 引用候选源；不传则 @ 不触发补全 */
@@ -50,13 +50,16 @@ export function ChatShell(props: ChatShellProps): ReactNode {
 function ChatShellContent(props: ChatShellProps): ReactNode {
   const { protocol } = props;
   const theme = props.theme ?? defaultTheme;
-  const renderer = useRenderer();
   const [localToast, setLocalToast] = useState<ToastMessage | null>(null);
   const store = protocol.stateStore;
 
   useSelectionHandler((selection) => {
     const selectedText = selection.getSelectedText();
-    if (selectedText) renderer.copyToClipboardOSC52(selectedText);
+    if (selectedText) {
+      void props.clipboard
+        .writeText(selectedText, { destination: "best-available" })
+        .catch(() => {});
+    }
   });
   // 双击选词是壳内一切可见文本的通性，只在根容器挂这一处：鼠标事件带着命中
   // target 沿 parent 链冒泡，所有后代文本（含未来新增的组件）天然被覆盖。
@@ -72,6 +75,7 @@ function ChatShellContent(props: ChatShellProps): ReactNode {
           store={store}
           theme={theme}
           clipPolicy={props.clipPolicy}
+          clipboard={props.clipboard}
           onToast={setLocalToast}
         />
         <QueueSurface store={store} theme={theme} />

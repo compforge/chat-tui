@@ -11,6 +11,7 @@ import {
   parallelItemDetails,
   type ChatProtocol,
 } from "../../../src/index.ts";
+import { createTestClipboard } from "../../clipboard.ts";
 
 let mounted: { root: Root; setup: TestRendererSetup } | null = null;
 
@@ -89,7 +90,7 @@ describe("Parallel", () => {
       searchPicker: () => {},
       resolveInteraction: () => {},
     };
-    root.render(createElement(ChatShell, { protocol, commands: [] }));
+    root.render(createElement(ChatShell, { protocol, commands: [], clipboard: createTestClipboard() }));
     await new Promise((resolve) => setTimeout(resolve, 0));
     await setup.flush();
 

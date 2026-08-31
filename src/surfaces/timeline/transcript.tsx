@@ -3,10 +3,11 @@ import {
   pathToFiletype,
   SyntaxStyle,
   treeSitterToStyledText,
+  type ClipboardService,
   type MouseEvent,
   type StyledText,
 } from "@opentui/core";
-import { useRenderer, useTerminalDimensions } from "@opentui/react";
+import { useTerminalDimensions } from "@opentui/react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import type {
@@ -37,6 +38,8 @@ export interface TranscriptProps {
   theme?: Theme;
   /** 高度预算策略；缺省 defaultClipPolicy。Ctrl+O 展开态由 Transcript 内部管理，策略无需感知 */
   clipPolicy?: ClipPolicy;
+  /** OpenTUI 剪贴板服务；未提供时复制最近消息动作不消费按键。 */
+  clipboard?: ClipboardService;
   /** 逐条自定义渲染；返回 undefined 时走默认渲染。自定义渲染自行负责高度预算。 */
   renderItem?: (item: TranscriptItem) => ReactNode | undefined;
   /** 操作回执出口（如复制成功 toast）；由壳接到 Footer */
@@ -83,7 +86,6 @@ interface ContentLine {
 export function Transcript(props: TranscriptProps): ReactNode {
   const theme = props.theme ?? defaultTheme;
   const syntaxStyle = useMemo(() => syntaxStyleFor(theme), [theme]);
-  const renderer = useRenderer();
   const keybinds = useKeybindOverrides();
   // 折叠是展示层关心的事（不需要理解 agent 在干什么），所以展开态自持在 Transcript，
   // 不进 ChatProtocol；键位也注册在这里，让高度预算特性对 ChatShell 完全透明。
@@ -135,14 +137,22 @@ export function Transcript(props: TranscriptProps): ReactNode {
       },
       {
         name: "transcript.copy-last-message",
-        run: () => {
+        run: async () => {
           const message = lastAgentMessage(props.items);
-          if (!message) return false;
-          renderer.copyToClipboardOSC52(messageCopyText(message));
-          props.onToast?.({
-            text: "Copied message to clipboard",
-            tone: "success",
-          });
+          if (!message || !props.clipboard) return false;
+          let copied = false;
+          try {
+            const result = await props.clipboard.writeText(messageCopyText(message), {
+              destination: "best-available",
+            });
+            copied = result.host.status === "written" || result.terminal.status === "attempted";
+          } catch {
+            // ClipboardService normally returns a failed result; keep the UI fail-closed if an
+            // injected backend violates that contract and rejects instead.
+          }
+          props.onToast?.(copied
+            ? { text: "Copied message to clipboard", tone: "success" }
+            : { text: "Clipboard unavailable", tone: "error" });
         },
       },
     ],

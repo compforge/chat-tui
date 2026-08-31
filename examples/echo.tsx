@@ -5,7 +5,12 @@
 //   /model（picker）、/approve（审批卡片）、/question（结构化提问）、Shift+Enter 或 Ctrl+J 换行、
 //   跑着时 Esc 打断、Ctrl+C 分层语义、/exit 退出。
 
-import { createCliRenderer } from "@opentui/core";
+import {
+  createCliRenderer,
+  createClipboard,
+  createHostClipboard,
+  createRendererClipboardAdapter,
+} from "@opentui/core";
 import { createRoot } from "@opentui/react";
 
 import {
@@ -30,6 +35,8 @@ const COMMANDS: readonly CommandSpec[] = [
 
 /** 演示用 harness：submit 后流式回显输入，并伴随一个假工具调用。 */
 class EchoHarness implements ChatProtocol {
+  constructor(private readonly quit: () => void) {}
+
   private model = "demo";
 
   /** Provider Status 主行：输入目标常驻，运行相位仅 busy 时附加（对齐 runStatus 语义） */
@@ -333,7 +340,7 @@ class EchoHarness implements ChatProtocol {
 
   exit(): void {
     this.stopStreaming();
-    process.exit(0);
+    this.quit();
   }
 
   resolvePicker(_id: string, value: string | null): void {
@@ -378,4 +385,19 @@ if (!process.stdout.isTTY) {
 }
 // Ctrl+C 由 ChatShell 接管（分层语义）；autoFocus=false 防止鼠标点击把焦点从输入框抢走
 const renderer = await createCliRenderer({ exitOnCtrlC: false, targetFps: 30, autoFocus: false });
-createRoot(renderer).render(<ChatShell protocol={new EchoHarness()} commands={COMMANDS} />);
+const clipboard = createClipboard({
+  host: createHostClipboard(),
+  terminal: createRendererClipboardAdapter(renderer),
+});
+const root = createRoot(renderer);
+let exiting = false;
+const exit = (): void => {
+  if (exiting) return;
+  exiting = true;
+  root.unmount();
+  void clipboard.dispose().finally(() => {
+    renderer.destroy();
+    process.exit(0);
+  });
+};
+root.render(<ChatShell protocol={new EchoHarness(exit)} commands={COMMANDS} clipboard={clipboard} />);
