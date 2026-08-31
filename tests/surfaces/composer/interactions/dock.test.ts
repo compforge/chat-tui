@@ -20,6 +20,7 @@ import {
 import type { InteractionResponse } from "../../../../src/index.ts";
 import type { QueueIntent } from "../../../../src/index.ts";
 import type { KeybindOverrides } from "../../../../src/index.ts";
+import { createTestClipboard } from "../../../clipboard.ts";
 
 let mounted: { root: Root; setup: TestRendererSetup } | null = null;
 
@@ -97,7 +98,12 @@ async function mount(
   });
   const root = createRoot(setup.renderer);
   mounted = { root, setup };
-  root.render(createElement(ChatShell, { protocol, commands: [], keybinds }));
+  root.render(createElement(ChatShell, {
+    protocol,
+    commands: [],
+    keybinds,
+    clipboard: createTestClipboard(),
+  }));
   await new Promise((resolve) => setTimeout(resolve, 0));
   await setup.flush();
   const composer = rendererItems(setup).find(

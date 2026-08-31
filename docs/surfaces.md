@@ -40,7 +40,8 @@ Timeline 是可滚动的过去时区域，接收 message、activity block 与 re
   （`… +N lines`）只展开该 block；按块展开后内容尾部出现 `… expanded (click to collapse)`
   提示行，点击它收起该块（全局展开不挂收起提示，收起走 Ctrl+O）。提示行的点击按 down/up
   同点判定，拖拽选择不会误触发。Ctrl+Shift+Y 复制最近一条 agent 消息（整条消息只有一个
-  code fence 时复制纯代码），复制走 OSC52，成功后经 Footer toast 回执。
+  code fence 时复制纯代码），复制走接入方提供的 OpenTUI `ClipboardService`
+  （host/terminal fallback 由 OpenTUI 决定），结果经 Footer toast 回执。
 - 接入方可用带稳定 ID 的 `TranscriptGroupItem` 收纳完整 `TranscriptBlockItem`，并声明默认收起；
   chat-tui 只负责一行摘要与 Ctrl+O 展开，不判断哪些相邻事实应该合并。首成员出现时就创建 group，
   后续只追加 member 并更新摘要，避免流式过程中改变顶层节点类型。group 的成员仅允许 block，不能

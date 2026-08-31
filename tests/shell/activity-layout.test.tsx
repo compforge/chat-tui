@@ -9,6 +9,7 @@ import {
   createChatStore,
   type ChatProtocol,
 } from "../../src/index.ts";
+import { createTestClipboard } from "../clipboard.ts";
 
 let mounted: { root: Root; setup: TestRendererSetup } | null = null;
 
@@ -52,7 +53,7 @@ describe("ChatShell activity layout", () => {
       searchPicker: () => {},
       resolveInteraction: () => {},
     };
-    root.render(createElement(ChatShell, { protocol, commands: [] }));
+    root.render(createElement(ChatShell, { protocol, commands: [], clipboard: createTestClipboard() }));
     await new Promise((resolve) => setTimeout(resolve, 0));
     await setup.flush();
 
@@ -87,7 +88,7 @@ describe("ChatShell activity layout", () => {
       searchPicker: () => {},
       resolveInteraction: () => {},
     };
-    root.render(createElement(ChatShell, { protocol, commands: [] }));
+    root.render(createElement(ChatShell, { protocol, commands: [], clipboard: createTestClipboard() }));
     await new Promise((resolve) => setTimeout(resolve, 0));
     await setup.flush();
 
@@ -124,7 +125,7 @@ describe("ChatShell activity layout", () => {
       searchPicker: () => {},
       resolveInteraction: () => {},
     };
-    root.render(createElement(ChatShell, { protocol, commands: [] }));
+    root.render(createElement(ChatShell, { protocol, commands: [], clipboard: createTestClipboard() }));
     await new Promise((resolve) => setTimeout(resolve, 0));
     await setup.flush();
 

@@ -1,6 +1,5 @@
 import type { MouseEvent, Renderable, TextareaRenderable, TextRenderable } from "@opentui/core";
 import { useRenderer } from "@opentui/react";
-import { useRef } from "react";
 
 import { tokenColumnRange, visualLineAt } from "./selection.ts";
 
@@ -18,7 +17,7 @@ function selectableTextTarget(target: Renderable | null): SelectableTextTarget |
 }
 
 /**
- * 把 OpenTUI 双击产生的单字符选区扩成完整 token。
+ * 把 OpenTUI 双击产生的 word 选区扩成完整产品 token。
  *
  * 在壳的根容器上挂一次即可（ChatShell 已挂）：OpenTUI 鼠标事件沿 parent 链冒泡，
  * `event.target` 始终是命中的 renderable，因此后代的一切可见文本都被覆盖，
@@ -26,30 +25,21 @@ function selectableTextTarget(target: Renderable | null): SelectableTextTarget |
  */
 export function useTokenSelectionOnDoubleClick(): (event: MouseEvent) => void {
   const renderer = useRenderer();
-  const lastClick = useRef<{
-    target: SelectableTextTarget;
-    x: number;
-    y: number;
-    at: number;
-  } | null>(null);
 
   return (event: MouseEvent): void => {
     const target = selectableTextTarget(event.target);
     if (!target || event.button !== 0) return;
-    const now = Date.now();
-    const previous = lastClick.current;
-    const isDoubleClick =
-      previous?.target === target && previous.y === event.y && Math.abs(previous.x - event.x) <= 1 && now - previous.at <= 350;
-    lastClick.current = isDoubleClick ? null : { target, x: event.x, y: event.y, at: now };
-    if (!isDoubleClick) return;
+    // OpenTUI 统一维护 click repeat 的时间窗、落点容差和 cell/word/line 状态。
+    // 这里只扩展原生 word；第三击的 line 选择原样保留，不再维护另一套点击时钟。
+    if (renderer.getSelection()?.behavior !== "word") return;
 
     const localY = event.y - target.y;
     const line = visualLineAt(target.plainText, target.width, localY);
     const range = line ? tokenColumnRange(line, event.x - target.x) : null;
     if (!range || range.end <= range.start) return;
 
-    // OpenTUI 已在 mouse-down 建立单字符选区；第二击将它扩成 token，mouse-up 仍走
-    // 框架原生 finishSelection，从而保留高亮并触发现有 OSC52 复制回调。0.5.7 起
+    // OpenTUI 已在第二次 mouse-down 建立 word 选区；这里用产品 token 边界替换它，
+    // mouse-up 仍走框架原生 finishSelection，从而保留高亮并触发统一剪贴板回调。0.5.7 起
     // cell occupancy 包含 focus cell，因此 exclusive end 要回退到 token 最后一个 cell。
     renderer.startSelection(target, target.x + range.start, event.y);
     renderer.updateSelection(target, target.x + range.end - 1, event.y);

@@ -18,6 +18,7 @@ import {
 } from "../../src/index.ts";
 import { tokenColumnRange, visualLineAt } from "../../src/index.ts";
 import { useTokenSelectionOnDoubleClick } from "../../src/index.ts";
+import { createTestClipboard } from "../clipboard.ts";
 
 let mounted: { root: Root; setup: TestRendererSetup } | null = null;
 
@@ -155,6 +156,9 @@ describe("double-click selection", () => {
     await setup.mockMouse.doubleClick(status!.x + 12, status!.y);
 
     expect(setup.renderer.getSelection()?.getSelectedText()).toBe("bs_01ABC-xyz");
+    await setup.mockMouse.click(status!.x + 12, status!.y);
+    expect(setup.renderer.getSelection()?.behavior).toBe("line");
+    expect(setup.renderer.getSelection()?.getSelectedText()).toBe("Session: bs_01ABC-xyz");
   });
 
   test("double click selects and copies a token in markdown messages", async () => {
@@ -176,11 +180,8 @@ describe("double-click selection", () => {
       },
     });
     let copied = "";
-    setup.renderer.copyToClipboardOSC52 = (text) => {
-      copied = text;
-      return true;
-    };
-    root.render(createElement(ChatShell, { protocol, commands: [] }));
+    const clipboard = createTestClipboard((text) => { copied = text; });
+    root.render(createElement(ChatShell, { protocol, commands: [], clipboard }));
     await new Promise((resolve) => setTimeout(resolve, 0));
     await setup.flush();
     const markdownBlocks = rendererItems(setup)
@@ -213,11 +214,8 @@ describe("double-click selection", () => {
       },
     });
     let copied = "";
-    setup.renderer.copyToClipboardOSC52 = (text) => {
-      copied = text;
-      return true;
-    };
-    root.render(createElement(ChatShell, { protocol, commands: [] }));
+    const clipboard = createTestClipboard((text) => { copied = text; });
+    root.render(createElement(ChatShell, { protocol, commands: [], clipboard }));
     await new Promise((resolve) => setTimeout(resolve, 0));
     await setup.flush();
 
@@ -241,11 +239,8 @@ describe("double-click selection", () => {
     mounted = { root, setup };
     const protocol = testProtocol();
     let copied = "";
-    setup.renderer.copyToClipboardOSC52 = (text) => {
-      copied = text;
-      return true;
-    };
-    root.render(createElement(ChatShell, { protocol, commands: [] }));
+    const clipboard = createTestClipboard((text) => { copied = text; });
+    root.render(createElement(ChatShell, { protocol, commands: [], clipboard }));
     await new Promise((resolve) => setTimeout(resolve, 0));
     await setup.flush();
 
