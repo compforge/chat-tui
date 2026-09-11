@@ -13,14 +13,18 @@ import { useKeybindOverrides } from "../../input/keyboard.tsx";
 import { editorKeyBindings } from "../../input/keybinds.ts";
 import { defaultTheme, type Theme } from "../../theme.ts";
 import {
+  bindPasteToken,
   createPasteBoard,
   expandPasteTokens,
   foldPaste,
   pasteTokenAt,
+  pasteTokenRanges,
   pasteTokenSelection,
   removePasteChunk,
   shouldFoldPaste,
   type PasteBoard,
+  type PasteMark,
+  type PasteTokenRange,
 } from "./paste.ts";
 
 // 对齐 chat CLI 习惯：Enter 发送；Shift+Enter / Option+Enter 换行。
@@ -64,14 +68,22 @@ export function composerHeightFor(draft: string, maxLines = 6): number {
   return Math.min(maxLines, draft.split("\n").length) + 2;
 }
 
-/** 删除整个粘贴 token：不走 selection，直接重写 buffer 并复位光标。 */
+/** 删除整个粘贴 token，并让 OpenTUI extmark 同步调整其余 token 的位置。 */
 function deleteTokenRange(
   textarea: TextareaRenderable,
   range: { start: number; end: number },
 ): void {
-  const text = textarea.plainText;
-  textarea.setText(text.slice(0, range.start) + text.slice(range.end));
+  textarea.setSelection(range.start, range.end);
+  textarea.deleteSelection();
   textarea.cursorOffset = range.start;
+}
+
+function pasteMarks(textarea: TextareaRenderable, board: PasteBoard): PasteMark[] {
+  return board.chunks.flatMap((chunk) => {
+    if (chunk.markId === undefined) return [];
+    const mark = textarea.extmarks.get(chunk.markId);
+    return mark ? [{ id: mark.id, start: mark.start, end: mark.end }] : [];
+  });
 }
 
 function protectSelectedPasteTokens(
@@ -83,12 +95,82 @@ function protectSelectedPasteTokens(
   const protectedSelection = pasteTokenSelection(
     textarea.plainText,
     board,
+    pasteMarks(textarea, board),
     selection.start,
     selection.end,
   );
   if (!protectedSelection) return;
   textarea.setSelection(protectedSelection.start, protectedSelection.end);
   for (const token of protectedSelection.tokens) removePasteChunk(board, token);
+}
+
+/**
+ * Completion edits replace one contiguous span. Applying only that span lets OpenTUI extmarks
+ * retain exact paste-token identity while it adjusts their offsets around the edit.
+ */
+function editTextPreservingPasteMarks(
+  textarea: TextareaRenderable,
+  next: string,
+): void {
+  const current = textarea.plainText;
+  if (current === next) {
+    textarea.gotoBufferEnd();
+    return;
+  }
+  let start = 0;
+  while (
+    start < current.length &&
+    start < next.length &&
+    current[start] === next[start]
+  ) {
+    start += 1;
+  }
+  let currentEnd = current.length;
+  let nextEnd = next.length;
+  while (
+    currentEnd > start &&
+    nextEnd > start &&
+    current[currentEnd - 1] === next[nextEnd - 1]
+  ) {
+    currentEnd -= 1;
+    nextEnd -= 1;
+  }
+  const replacement = next.slice(start, nextEnd);
+  if (currentEnd > start) {
+    textarea.setSelection(start, currentEnd);
+    if (replacement) textarea.insertText(replacement);
+    else textarea.deleteSelection();
+  } else {
+    textarea.cursorOffset = start;
+    textarea.insertText(replacement);
+  }
+  textarea.gotoBufferEnd();
+}
+
+function moveCursorAcrossPasteTokens(
+  textarea: TextareaRenderable,
+  ranges: readonly PasteTokenRange[],
+  direction: "left" | "right" | "up" | "down",
+): void {
+  const previousOffset = textarea.cursorOffset;
+  if (direction === "left") textarea.moveCursorLeft();
+  else if (direction === "right") textarea.moveCursorRight();
+  else if (direction === "up") textarea.moveCursorUp();
+  else textarea.moveCursorDown();
+
+  const offset = textarea.cursorOffset;
+  const range = ranges.find(
+    (candidate) => candidate.start < offset && offset < candidate.end,
+  );
+  if (!range) return;
+  if (direction === "left") textarea.cursorOffset = range.start;
+  else if (direction === "right") textarea.cursorOffset = range.end;
+  else if (previousOffset < range.start) textarea.cursorOffset = range.start;
+  else if (previousOffset > range.end) textarea.cursorOffset = range.end;
+  else {
+    textarea.cursorOffset =
+      offset - range.start < range.end - offset ? range.start : range.end;
+  }
 }
 
 /** 普通字符会替换 selection；导航、提交和带控制修饰符的命令不会。 */
@@ -124,8 +206,8 @@ export const ComposerEditor = memo(function ComposerEditor(
       textarea.current?.gotoBufferEnd();
     },
     editText(text: string) {
-      textarea.current?.setText(text);
-      textarea.current?.gotoBufferEnd();
+      const ta = textarea.current;
+      if (ta) editTextPreservingPasteMarks(ta, text);
     },
     clear() {
       textarea.current?.setText("");
@@ -153,7 +235,15 @@ export const ComposerEditor = memo(function ComposerEditor(
     if (!shouldFoldPaste(content)) return;
     event.preventDefault();
     const token = foldPaste(pasteBoard.current, content);
-    ta?.insertText(token);
+    if (!ta) return;
+    ta.insertText(token);
+    const end = ta.cursorOffset;
+    const markId = ta.extmarks.create({
+      start: end - token.length,
+      end,
+      metadata: { kind: "composer-paste" },
+    });
+    bindPasteToken(pasteBoard.current, token, markId);
   };
 
   const handleKeyDown = (event: KeyEvent): void => {
@@ -167,12 +257,26 @@ export const ComposerEditor = memo(function ComposerEditor(
     const offset = ta.cursorOffset;
     const board = pasteBoard.current;
     if (board.chunks.length === 0) return;
+    const marks = pasteMarks(ta, board);
+    const ranges = pasteTokenRanges(text, board, marks);
+
+    if (
+      event.name === "left" ||
+      event.name === "right" ||
+      event.name === "up" ||
+      event.name === "down"
+    ) {
+      event.preventDefault();
+      moveCursorAcrossPasteTokens(ta, ranges, event.name);
+      return;
+    }
 
     // backspace / delete 落在 token 上时整体删除，不允许部分编辑
     if (event.name === "backspace" || event.name === "delete") {
       const range = pasteTokenAt(
         text,
         board,
+        marks,
         offset,
         event.name === "backspace" ? "backward" : "forward",
       );
@@ -184,11 +288,10 @@ export const ComposerEditor = memo(function ComposerEditor(
       return;
     }
 
-    // 其余编辑/移动键：光标落在 token 内部时先吸附到边界（左移去头部，其余去尾部），
-    // token 因此不可被逐字符进入
-    const inside = pasteTokenAt(text, board, offset, "inside");
+    // 其它编辑键从 token 内部触发时先吸附到尾部，防止逐字符改坏占位文本。
+    const inside = pasteTokenAt(text, board, marks, offset, "inside");
     if (inside) {
-      ta.cursorOffset = event.name === "left" ? inside.start : inside.end;
+      ta.cursorOffset = inside.end;
     }
   };
 
@@ -214,8 +317,15 @@ export const ComposerEditor = memo(function ComposerEditor(
         onContentChange={() => props.onChange(textarea.current?.plainText ?? "")}
         onSubmit={() => {
           // textarea 的 submit 事件不带值，从内部 buffer 读；粘贴 token 在此展开回原文
-          const raw = textarea.current?.plainText ?? "";
-          props.onSubmit(expandPasteTokens(raw, pasteBoard.current));
+          const ta = textarea.current;
+          const raw = ta?.plainText ?? "";
+          props.onSubmit(
+            expandPasteTokens(
+              raw,
+              pasteBoard.current,
+              ta ? pasteMarks(ta, pasteBoard.current) : [],
+            ),
+          );
         }}
       />
     </box>
