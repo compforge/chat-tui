@@ -39,6 +39,8 @@ const options: PickerView["options"] = [
 describe("Picker search", () => {
   test("keeps a full display column when scrolling through wide characters", () => {
     expect(marqueeFrame("甲乙", 1)).toBe(" 乙   甲乙");
+    expect(marqueeFrame("👨‍👩‍👧‍👦abc", 1)).toBe(" abc   👨‍👩‍👧‍👦abc");
+    expect(marqueeFrame("éabc", 1)).toBe("abc   éabc");
   });
 
   test("filters local options by name and description", () => {

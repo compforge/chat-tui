@@ -15,7 +15,7 @@ export * from "./store/chat-store.ts";
 export { type Store } from "./store/contract.ts";
 export { useStoreSelector, useStoreState } from "./store/react.ts";
 export * from "./theme.ts";
-export * from "./terminal/text.ts";
+export { displayWidth, ellipsize, sanitizeLine, wrapLine } from "./terminal/text.ts";
 export * from "./terminal/time.ts";
 export {
   InputProvider,

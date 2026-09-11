@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { displayWidth, ellipsize } from "./text.ts";
+import { displayWidth, ellipsize, textFromColumn } from "./text.ts";
 
 const MARQUEE_GAP = "   ";
 export const MARQUEE_INTERVAL_MS = 200;
@@ -31,29 +31,13 @@ export function nextMarqueeOffset(
   return current + 1 >= cycleWidth ? 0 : current + 1;
 }
 
-/** Text suffix shown when a renderer cannot scroll a stable text viewport itself. */
+/** Select exposes option strings but no horizontal text viewport. */
 export function marqueeFrame(text: string, offset: number): string {
   const marquee = marqueeContent(text);
-  const normalizedOffset = Math.max(
-    0,
-    Math.min(offset, marquee.cycleWidth - 1),
+  return textFromColumn(
+    marquee.text,
+    Math.max(0, Math.min(offset, marquee.cycleWidth - 1)),
   );
-  let skippedWidth = 0;
-  let frame = "";
-  for (const char of marquee.text) {
-    const charWidth = displayWidth(char);
-    if (skippedWidth + charWidth <= normalizedOffset) {
-      skippedWidth += charWidth;
-      continue;
-    }
-    if (skippedWidth < normalizedOffset) {
-      frame += " ".repeat(skippedWidth + charWidth - normalizedOffset);
-    } else {
-      frame += char;
-    }
-    skippedWidth += charWidth;
-  }
-  return frame;
 }
 
 export interface MarqueeTextProps {

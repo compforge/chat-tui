@@ -166,8 +166,7 @@ export function Transcript(props: TranscriptProps): ReactNode {
     policy: props.clipPolicy ?? defaultClipPolicy,
     expanded,
     expandedIds,
-    // scrollbox 左右 padding 2 + 内容缩进 4 + 1 列余量（滚动条/宽度度量误差兜底）。
-    // 估小只是行提前折断；估大由 opentui 兜底 wrap（多占 1 行），都不破坏预算量级。
+    // scrollbox 左右 padding 2 + 内容缩进 4 + 1 列滚动条余量。
     wrapWidth: Math.max(16, termWidth - 7),
   };
   return (
