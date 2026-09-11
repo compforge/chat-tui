@@ -12,7 +12,6 @@ import {
   InputProvider,
   type ComposerHandle,
 } from "../../../src/index.ts";
-import { visiblePasteTokenText } from "../../../src/surfaces/composer/paste.ts";
 
 let mounted: { root: Root; setup: TestRendererSetup } | null = null;
 
@@ -76,7 +75,8 @@ describe("ComposerEditor paste folding", () => {
 
     await setup.mockInput.pasteBracketedText(multiline);
     await setup.flush();
-    expect(visiblePasteTokenText(bufferText(setup))).toBe("[Pasted #1 ~12 lines]");
+    expect(bufferText(setup)).toBe("[Pasted #1 ~12 lines]");
+    expect(setup.captureCharFrame()).toContain("[Pasted #1 ~12 lines]");
 
     editorRef.current?.editText(`review ${bufferText(setup)}`);
     setup.mockInput.pressEnter();
@@ -121,9 +121,29 @@ describe("ComposerEditor paste folding", () => {
     await setup.mockInput.pasteBracketedText(multiline);
     await setup.mockInput.pasteBracketedText("x".repeat(300));
     await setup.flush();
-    expect(visiblePasteTokenText(bufferText(setup))).toBe(
+    expect(bufferText(setup)).toBe(
       "[Pasted #1 ~12 lines][Pasted #2 300 chars]",
     );
+  });
+
+  test("arrow keys cross a pasted token without entering or skipping its line", async () => {
+    const setup = await mount({});
+    await setup.mockInput.typeText("first\n\n");
+    await setup.mockInput.pasteBracketedText(multiline);
+    await setup.flush();
+    const textarea = focusedTextarea(setup);
+    const tokenStart = "first\n\n".length;
+    const tokenEnd = textarea.plainText.length;
+
+    setup.mockInput.pressArrow("left");
+    expect(textarea.cursorOffset).toBe(tokenStart);
+    setup.mockInput.pressArrow("right");
+    expect(textarea.cursorOffset).toBe(tokenEnd);
+    setup.mockInput.pressArrow("up");
+    expect(textarea.logicalCursor.row).toBe(1);
+    setup.mockInput.pressArrow("down");
+    expect(textarea.logicalCursor.row).toBe(2);
+    expect([tokenStart, tokenEnd]).toContain(textarea.cursorOffset);
   });
 
   test("a literal look-alike remains literal when the matching chip exists", async () => {

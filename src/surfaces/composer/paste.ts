@@ -9,6 +9,8 @@ export const PASTE_FOLD_MIN_CHARS = 200;
 export interface PasteChunk {
   token: string;
   content: string;
+  /** OpenTUI extmark identity; the mark tracks this exact token as surrounding text changes. */
+  markId?: number;
 }
 
 /**
@@ -16,15 +18,12 @@ export interface PasteChunk {
  * 互不重复（等长内容也不撞车）。清空/提交后由持有方重建。
  */
 export interface PasteBoard {
-  /** 每个 composer 实例独有；编码进不可见 token identity，避免同形可见文本被误展开。 */
-  id: string;
   nextId: number;
   chunks: PasteChunk[];
 }
 
 export function createPasteBoard(): PasteBoard {
-  const id = globalThis.crypto.randomUUID().replaceAll("-", "").slice(0, 12);
-  return { id, nextId: 1, chunks: [] };
+  return { nextId: 1, chunks: [] };
 }
 
 export function pasteLineCount(text: string): number {
@@ -46,58 +45,36 @@ export function pasteTokenLabel(id: number, content: string): string {
     : `[Pasted #${id} ${content.length} chars]`;
 }
 
-const UNICODE_TAG_OFFSET = 0xe0000;
-const UNICODE_CANCEL_TAG = 0xe007f;
-const UNICODE_TAGS = /[\u{e0000}-\u{e007f}]/gu;
-
-/**
- * Unicode tag characters are not rendered by OpenTUI, but remain part of the editable buffer.
- * Encoding the board identity behind the visible label makes the replacement key opaque without
- * changing the chip text the user sees.
- */
-function pasteTokenIdentity(value: string): string {
-  return Array.from(value, (character) =>
-    String.fromCodePoint(UNICODE_TAG_OFFSET + (character.codePointAt(0) ?? 0))
-  ).join("") + String.fromCodePoint(UNICODE_CANCEL_TAG);
-}
-
-/** Buffer/text assertions that need the user-visible token text can strip its opaque identity. */
-export function visiblePasteTokenText(text: string): string {
-  return text.replaceAll(UNICODE_TAGS, "");
-}
-
 /** 折叠一段粘贴内容：登记旁表并返回应插入 buffer 的 token。 */
 export function foldPaste(board: PasteBoard, content: string): string {
   const id = board.nextId;
-  const token = pasteTokenLabel(id, content) + pasteTokenIdentity(board.id);
+  const token = pasteTokenLabel(id, content);
   board.nextId += 1;
   board.chunks.push({ token, content });
   return token;
 }
 
-// token 中不含 regex 特殊字符（数字/空格/波浪线/方括号），逐字匹配即可
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** 将刚插入的 token 与 OpenTUI 跟踪其位置的 extmark 绑定。 */
+export function bindPasteToken(
+  board: PasteBoard,
+  token: string,
+  markId: number,
+): void {
+  const chunk = board.chunks.find((candidate) => candidate.token === token);
+  if (chunk) chunk.markId = markId;
 }
 
-/** 提交时把 buffer 里的 token 展开回完整原文；未知 token（如手敲的同形文本）保持原样。 */
-export function expandPasteTokens(text: string, board: PasteBoard): string {
-  if (board.chunks.length === 0) return text;
-  const contents = new Map(
-    board.chunks.map((chunk) => [chunk.token, chunk.content] as const),
-  );
-  const tokens = new RegExp(
-    board.chunks.map((chunk) => escapeRegExp(chunk.token)).join("|"),
-    "g",
-  );
-  // 单次扫描只替换 buffer 原有 token，不能再次扫描刚展开的粘贴内容。
-  return text.replace(tokens, (token) => contents.get(token) ?? token);
+export interface PasteMark {
+  id: number;
+  start: number;
+  end: number;
 }
 
 export interface PasteTokenRange {
   start: number;
   end: number;
   token: string;
+  content: string;
 }
 
 export interface PasteTokenSelection {
@@ -106,36 +83,59 @@ export interface PasteTokenSelection {
   tokens: string[];
 }
 
-/** buffer 中所有已登记 token 的位置（按出现顺序）。 */
+/**
+ * Resolve only extmark-backed tokens. The mark, rather than token-shaped buffer text, identifies
+ * a real paste chip so a literal `[Pasted ...]` typed by the user is never expanded accidentally.
+ */
 export function pasteTokenRanges(
   text: string,
   board: PasteBoard,
+  marks: readonly PasteMark[],
 ): PasteTokenRange[] {
+  const marksById = new Map(marks.map((mark) => [mark.id, mark] as const));
   const ranges: PasteTokenRange[] = [];
   for (const chunk of board.chunks) {
-    const pattern = new RegExp(escapeRegExp(chunk.token), "g");
-    for (const match of text.matchAll(pattern)) {
-      ranges.push({
-        start: match.index,
-        end: match.index + chunk.token.length,
-        token: chunk.token,
-      });
-    }
+    if (chunk.markId === undefined) continue;
+    const mark = marksById.get(chunk.markId);
+    if (!mark || text.slice(mark.start, mark.end) !== chunk.token) continue;
+    ranges.push({
+      start: mark.start,
+      end: mark.end,
+      token: chunk.token,
+      content: chunk.content,
+    });
   }
   return ranges.sort((a, b) => a.start - b.start);
+}
+
+/** 提交时按已跟踪位置把真实 token 展开回原文；手敲的同形文本保持不变。 */
+export function expandPasteTokens(
+  text: string,
+  board: PasteBoard,
+  marks: readonly PasteMark[],
+): string {
+  let expanded = text;
+  for (const range of pasteTokenRanges(text, board, marks).toReversed()) {
+    expanded =
+      expanded.slice(0, range.start) +
+      range.content +
+      expanded.slice(range.end);
+  }
+  return expanded;
 }
 
 /** 将一段 selection 扩到其接触到的完整 token 边界；未接触 token 时返回 null。 */
 export function pasteTokenSelection(
   text: string,
   board: PasteBoard,
+  marks: readonly PasteMark[],
   selectionStart: number,
   selectionEnd: number,
 ): PasteTokenSelection | null {
   const start = Math.min(selectionStart, selectionEnd);
   const end = Math.max(selectionStart, selectionEnd);
   if (start === end) return null;
-  const touched = pasteTokenRanges(text, board).filter(
+  const touched = pasteTokenRanges(text, board, marks).filter(
     (range) => start < range.end && range.start < end,
   );
   if (touched.length === 0) return null;
@@ -155,10 +155,11 @@ export function pasteTokenSelection(
 export function pasteTokenAt(
   text: string,
   board: PasteBoard,
+  marks: readonly PasteMark[],
   offset: number,
   mode: "backward" | "forward" | "inside",
 ): PasteTokenRange | null {
-  for (const range of pasteTokenRanges(text, board)) {
+  for (const range of pasteTokenRanges(text, board, marks)) {
     const inside = range.start < offset && offset < range.end;
     if (mode === "inside" && inside) return range;
     if (mode === "backward" && (inside || offset === range.end)) return range;
