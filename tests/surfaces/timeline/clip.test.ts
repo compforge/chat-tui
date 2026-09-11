@@ -142,3 +142,24 @@ describe("ellipsize", () => {
     expect(ellipsize("abc", 1)).toBe("…");
   });
 });
+
+
+describe("native Unicode layout", () => {
+  test("measures joined emoji and variation selectors as complete graphemes", () => {
+    expect(displayWidth("👨‍👩‍👧‍👦")).toBe(2);
+    expect(displayWidth("🇨🇳")).toBe(2);
+    expect(displayWidth("❤️")).toBe(2);
+  });
+
+  test("wraps and clips without splitting joined emoji or combining marks", () => {
+    expect(wrapLine("👨‍👩‍👧‍👦👨‍👩‍👧‍👦", 2)).toEqual(["👨‍👩‍👧‍👦", "👨‍👩‍👧‍👦"]);
+    expect(ellipsize("👨‍👩‍👧‍👦abc", 3)).toBe("👨‍👩‍👧‍👦…");
+    expect(ellipsize("éabc", 2)).toBe("é…");
+    expect(ellipsize("你好", 2)).toBe("…");
+  });
+
+  test("preserves native word-wrap spaces and removes hyperlink control sequences", () => {
+    expect(wrapLine("Session: bs_01ABC-xyz", 12)).toEqual(["Session: ", "bs_01ABC-xyz"]);
+    expect(sanitizeLine("\x1b]8;;https://example.com\x07docs\x1b]8;;\x07")).toBe("docs");
+  });
+});

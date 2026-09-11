@@ -31,6 +31,8 @@ chat-tui/
 
 ## 关键约定
 
+- **终端能力归 OpenTUI**：原生已提供的能力直接复用，最低依赖随采用的能力升级，不维护旧版兼容分支或平行实现；chat-tui 只保留展示策略与产品交互语义。
+
 - **边界以是否理解 agent 语义为准**：chat-tui 只接收展示 State、产出用户 intent，不拥有 session / turn / provider / 事件流语义；具体命令、引用源和 theme 均由接入方注入。核心模型与协议边界见 `docs/kernel.md`。
 - **展示必须诚实且保持语义正交**：展示数据不冒充上游事件，结果、提示、来源和正文格式各自表达；未知值显式暴露，不静默伪装成已知状态。具体展示与裁剪规则见 `docs/surfaces.md`。
 - **State / Store / Surface 各司其职**：State 是数据组织单元，Store 负责发布和订阅，Surface 是独立渲染单元；三者相关但不要求一一对应。无关 State 更新不能让 Composer 丢焦点、重建 buffer 或清空 draft。具体边界见 `docs/kernel.md`。

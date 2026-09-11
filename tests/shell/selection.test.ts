@@ -67,8 +67,13 @@ describe("double-click selection", () => {
     expect(tokenColumnRange("模型 codex", 6)).toEqual({ start: 5, end: 10 });
   });
 
+  test("uses native grapheme columns before and inside a product token", () => {
+    expect(tokenColumnRange("👨‍👩‍👧‍👦 meta.json", 4)).toEqual({ start: 3, end: 12 });
+    expect(tokenColumnRange("é/file", 0)).toEqual({ start: 0, end: 6 });
+  });
+
   test("maps wrapped text to its visible row", () => {
-    expect(visualLineAt("Session: bs_01ABC-xyz", 12, 0)).toBe("Session:");
+    expect(visualLineAt("Session: bs_01ABC-xyz", 12, 0)).toBe("Session: ");
     expect(visualLineAt("Session: bs_01ABC-xyz", 12, 1)).toBe("bs_01ABC-xyz");
   });
 
