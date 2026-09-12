@@ -124,6 +124,50 @@ describe("Transcript groups", () => {
   });
 });
 
+describe("Transcript diff preview", () => {
+  test("clips a long diff by default and reveals it with Ctrl+O", async () => {
+    const setup = await createTestRenderer({ width: 80, height: 24, screenMode: "main-screen" });
+    const root = createRoot(setup.renderer);
+    mounted = { root, setup };
+    const patch = [
+      "--- src/a.ts",
+      "+++ src/a.ts",
+      "@@ -1,12 +1,12 @@",
+      ...Array.from({ length: 12 }, (_, index) => `-old line ${index + 1}`),
+      ...Array.from({ length: 12 }, (_, index) => `+new line ${index + 1}`),
+    ].join("\n");
+    root.render(
+      createElement(
+        InputProvider,
+        null,
+        createElement(Transcript, {
+          items: [{
+            type: "group",
+            id: "group:change-1",
+            members: [{
+              type: "block",
+              id: "change-1",
+              kind: "tool",
+              status: "completed",
+              title: "Edit · src/a.ts",
+              content: { type: "diff", op: "modify", path: "src/a.ts", patch },
+            }],
+          }],
+        }),
+      ),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await setup.flush();
+
+    expect(visibleText().some((text) => text.includes("(ctrl+o to expand)"))).toBe(true);
+
+    setup.mockInput.pressKey("o", { ctrl: true });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await setup.flush();
+    expect(visibleText().some((text) => text.includes("(ctrl+o to expand)"))).toBe(false);
+  });
+});
+
 function longOutputBlock(id: string, lines: number) {
   return {
     type: "block" as const,

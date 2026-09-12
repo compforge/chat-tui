@@ -96,8 +96,11 @@ describe("defaultClipPolicy", () => {
   test("plan is never clipped", () => {
     expect(defaultClipPolicy({ ...tool, kind: "plan" }, { type: "plan", entries: [] })).toBeNull();
   });
-  test("diff is never clipped", () => {
-    expect(defaultClipPolicy(tool, { type: "diff", op: "modify", path: "src/a.ts" })).toBeNull();
+  test("diff keeps a bounded head preview", () => {
+    expect(defaultClipPolicy(tool, { type: "diff", op: "modify", path: "src/a.ts" })).toEqual({
+      maxRows: 10,
+      keep: "head",
+    });
   });
   test("command and code keep head", () => {
     expect(defaultClipPolicy(tool, { type: "command", command: "ls" })).toEqual({ maxRows: 3, keep: "head" });

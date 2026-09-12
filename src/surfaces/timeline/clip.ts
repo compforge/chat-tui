@@ -40,21 +40,23 @@ export type ClipPolicy = (
   content: TranscriptBlockContent,
 ) => ClipBudget | null;
 
+const DIFF_PREVIEW_MAX_ROWS = 10;
+
 /**
  * 默认预算，取三家产品的收敛值：
  * - 输出类 5 行（Codex TOOL_CALL_MAX_LINES=5 / pi BASH_PREVIEW_LINES=5）；
  *   运行中跟尾部（持续追最新日志），结束后头尾各留（命令上下文在头、错误在尾，
  *   Codex truncate_lines_middle 同款）。
  * - command/code 3 行看头（Codex 命令续行 2 行 + 标题行的量级）。
- * - diff 永不裁剪：文件改动本身就是工具结果，完整展开与 Codex 原生体验一致；
- *   transcript 的滚动区负责承接高度，不把关键改动藏到额外交互后。
+ * - diff 默认展示 10 行预览：文件改动保持显眼，但不会把相邻对话推出终端；
+ *   完整内容仍可按块或用 Ctrl+O 展开。
  * - plan 永不裁剪：计划就是要一眼看全的东西。
  * - thought 3 行：氛围信息，密度优先。
  */
 export const defaultClipPolicy: ClipPolicy = (item, content) => {
   if (content.type === "plan") return null;
   if (content.type === "code" || content.type === "command") return { maxRows: 3, keep: "head" };
-  if (content.type === "diff") return null;
+  if (content.type === "diff") return { maxRows: DIFF_PREVIEW_MAX_ROWS, keep: "head" };
   if (item.kind === "thought") {
     return { maxRows: 3, keep: item.status === "in_progress" ? "tail" : "head" };
   }

@@ -35,7 +35,8 @@ Timeline 是可滚动的过去时区域，接收 message、activity block 与 re
   结果。例如 completed + warning 仍显示完成图标。
 - 未知状态不得静默伪装成某个已知结果，必须显式保留异常值。
 - 消息来源与正文格式分离：role / author 只表达谁在说话，format 独立表达 plain / markdown。
-- 长内容按视觉行预算折叠，diff 默认完整展示；裁剪不修改接入方传入的数据。
+- 长内容按视觉行预算折叠，diff 默认展示有限行数的头部预览；裁剪不修改接入方传入的数据，
+  完整内容仍可按块或用 Ctrl+O 展开。
 - 展开有两个正交维度：Ctrl+O 全局展开/收起（收起时清掉按块状态），点击裁剪提示行
   （`… +N lines`）只展开该 block；按块展开后内容尾部出现 `… expanded (click to collapse)`
   提示行，点击它收起该块（全局展开不挂收起提示，收起走 Ctrl+O）。提示行的点击按 down/up
