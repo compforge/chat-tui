@@ -193,30 +193,45 @@ function renderDefault(
 ): ReactNode {
   if (item.type === "message") {
     const author = messageAuthor(item);
+    const isUser = item.role === "user";
     const color =
-      item.role === "user" ? theme.user : (theme.agentColorFor?.(author) ?? theme.agent);
+      isUser ? theme.user : (theme.agentColorFor?.(author) ?? theme.agent);
+    // user 消息用 1 格 prompt 字形 + 左侧竖条做滚动锚点；竖条占 1 列，因此 gutter
+    // 收窄到 2 列（❯ + 空格），正文与 agent（● + 2 空格，3 列）对齐到同一列。
+    const gutter = isUser ? "❯ " : "●  ";
+    const body = item.format === "markdown" ? (
+      <markdown
+        content={item.text}
+        syntaxStyle={syntaxStyle}
+        streaming={item.streaming ?? false}
+        style={{ flexGrow: 1, flexShrink: 1 }}
+      />
+    ) : (
+      <text
+        fg={isUser ? theme.user : undefined}
+        style={{ flexGrow: 1, flexShrink: 1 }}
+        wrapMode="word"
+        selectable
+      >
+        {isUser ? <strong>{item.text}</strong> : item.text}
+      </text>
+    );
     return (
-      <box key={item.id} style={{ flexDirection: "row", marginTop: 1, width: "100%" }}>
-        <text fg={color} style={{ width: 3, flexShrink: 0 }} selectable>
-          {item.role === "user" ? "✨ " : "●  "}
+      <box
+        key={item.id}
+        {...(isUser
+          ? {
+              border: ["left"] as ("left")[],
+              borderStyle: "heavy" as const,
+              borderColor: theme.user,
+            }
+          : {})}
+        style={{ flexDirection: "row", marginTop: 1, width: "100%" }}
+      >
+        <text fg={color} style={{ width: isUser ? 2 : 3, flexShrink: 0 }} selectable>
+          {isUser ? <strong>{gutter}</strong> : gutter}
         </text>
-        {item.format === "markdown" ? (
-          <markdown
-            content={item.text}
-            syntaxStyle={syntaxStyle}
-            streaming={item.streaming ?? false}
-            style={{ flexGrow: 1, flexShrink: 1 }}
-          />
-        ) : (
-          <text
-            fg={item.role === "user" ? theme.user : undefined}
-            style={{ flexGrow: 1, flexShrink: 1 }}
-            wrapMode="word"
-            selectable
-          >
-            {item.text}
-          </text>
-        )}
+        {body}
       </box>
     );
   }

@@ -379,3 +379,38 @@ describe("Transcript copy last agent message", () => {
     expect(toasts).toEqual([]);
   });
 });
+
+describe("Transcript user markers", () => {
+  test("renders a prompt glyph, a left rule, and bold text for user rows only", async () => {
+    const setup = await createTestRenderer({ width: 80, height: 20, screenMode: "main-screen" });
+    const root = createRoot(setup.renderer);
+    mounted = { root, setup };
+    root.render(
+      createElement(
+        InputProvider,
+        null,
+        createElement(Transcript, {
+          items: [
+            { type: "message", id: "u1", role: "user", text: "hello there" },
+            { type: "message", id: "a1", role: "agent", text: "world" },
+          ],
+        }),
+      ),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await setup.flush();
+
+    const lines = setup.captureCharFrame().split("\n");
+    const userLine = lines.find((line) => line.includes("hello there"));
+    const agentLine = lines.find((line) => line.includes("world"));
+    expect(userLine).toContain("❯");
+    expect(userLine).toContain("┃");
+    expect(agentLine).toContain("●");
+    expect(agentLine).not.toContain("┃");
+
+    const spans = setup.captureSpans().lines.flatMap((line) => line.spans);
+    const userSpan = spans.find((span) => span.text.includes("hello there"));
+    const agentSpan = spans.find((span) => span.text.includes("world"));
+    expect(userSpan?.attributes ?? 0).not.toBe(agentSpan?.attributes ?? 0);
+  });
+});
