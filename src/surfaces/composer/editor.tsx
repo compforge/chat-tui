@@ -3,6 +3,7 @@ import type { KeyEvent } from "@opentui/core";
 import {
   memo,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   type ReactNode,
@@ -51,6 +52,8 @@ export interface ComposerHandle {
 
 export interface ComposerEditorProps {
   ref?: Ref<ComposerHandle>;
+  /** 仅在 editor 实例挂载时恢复；后续编辑仍由 OpenTUI textarea buffer 持有。 */
+  initialText?: string;
   /** 边框标题；ActivitySurface 已承载输入目标信息时通常不再需要 */
   title?: string;
   placeholder?: string;
@@ -59,7 +62,8 @@ export interface ComposerEditorProps {
   busy?: boolean;
   theme?: Theme;
   keyBindings?: NonNullable<TextareaOptions["keyBindings"]>;
-  onChange: (text: string) => void;
+  /** visibleText 是 buffer 文本；logicalText 已展开大段粘贴 token，可安全跨重建保存。 */
+  onChange: (visibleText: string, logicalText: string) => void;
   onSubmit: (text: string) => void;
 }
 
@@ -84,6 +88,12 @@ function pasteMarks(textarea: TextareaRenderable, board: PasteBoard): PasteMark[
     const mark = textarea.extmarks.get(chunk.markId);
     return mark ? [{ id: mark.id, start: mark.start, end: mark.end }] : [];
   });
+}
+
+function pasteBoardIdentity(board: PasteBoard): string {
+  return `${board.nextId}:${board.chunks
+    .map((chunk) => `${chunk.token}\u0000${chunk.markId ?? ""}`)
+    .join("\u0001")}`;
 }
 
 function protectSelectedPasteTokens(
@@ -193,11 +203,48 @@ export const ComposerEditor = memo(function ComposerEditor(
   const theme = props.theme ?? defaultTheme;
   const textarea = useRef<TextareaRenderable | null>(null);
   const pasteBoard = useRef<PasteBoard>(createPasteBoard());
+  const restoringInitialText = useRef(false);
+  const foldingPaste = useRef(false);
+  const acceptingChanges = useRef(true);
+  const lastPublishedDraft = useRef<{ visible: string; pasteIdentity: string } | null>(null);
   const keybinds = useKeybindOverrides();
   const keyBindings = useMemo(
     () => props.keyBindings ?? editorKeyBindings(keybinds),
     [props.keyBindings, keybinds],
   );
+
+  const notifyChange = (): void => {
+    if (!acceptingChanges.current) return;
+    const ta = textarea.current;
+    const visibleText = ta?.plainText ?? "";
+    const pasteIdentity = pasteBoardIdentity(pasteBoard.current);
+    if (
+      lastPublishedDraft.current?.visible === visibleText &&
+      lastPublishedDraft.current.pasteIdentity === pasteIdentity
+    ) return;
+    const logicalText = expandPasteTokens(
+      visibleText,
+      pasteBoard.current,
+      ta ? pasteMarks(ta, pasteBoard.current) : [],
+    );
+    lastPublishedDraft.current = { visible: visibleText, pasteIdentity };
+    props.onChange(visibleText, logicalText);
+  };
+
+  useLayoutEffect(() => {
+    acceptingChanges.current = true;
+    return () => {
+      // OpenTUI 销毁 buffer 时仍可能回调 content change；它不是用户编辑，不能覆盖已保存草稿。
+      acceptingChanges.current = false;
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    if (restoringInitialText.current || !props.initialText) return;
+    restoringInitialText.current = true;
+    textarea.current?.setText(props.initialText);
+    textarea.current?.gotoBufferEnd();
+  }, [props.initialText]);
 
   useImperativeHandle(props.ref, () => ({
     setText(text: string) {
@@ -236,14 +283,21 @@ export const ComposerEditor = memo(function ComposerEditor(
     event.preventDefault();
     const token = foldPaste(pasteBoard.current, content);
     if (!ta) return;
-    ta.insertText(token);
-    const end = ta.cursorOffset;
-    const markId = ta.extmarks.create({
-      start: end - token.length,
-      end,
-      metadata: { kind: "composer-paste" },
-    });
-    bindPasteToken(pasteBoard.current, token, markId);
+    foldingPaste.current = true;
+    try {
+      ta.insertText(token);
+      const end = ta.cursorOffset;
+      const markId = ta.extmarks.create({
+        start: end - token.length,
+        end,
+        metadata: { kind: "composer-paste" },
+      });
+      bindPasteToken(pasteBoard.current, token, markId);
+    } finally {
+      foldingPaste.current = false;
+    }
+    // insertText 的同步 change 早于 extmark 建立；绑定完成后再发布可恢复的逻辑正文。
+    notifyChange();
   };
 
   const handleKeyDown = (event: KeyEvent): void => {
@@ -284,7 +338,7 @@ export const ComposerEditor = memo(function ComposerEditor(
       event.preventDefault();
       deleteTokenRange(ta, range);
       removePasteChunk(board, range.token);
-      props.onChange(ta.plainText);
+      notifyChange();
       return;
     }
 
@@ -314,7 +368,9 @@ export const ComposerEditor = memo(function ComposerEditor(
         keyBindings={keyBindings}
         onPaste={handlePaste}
         onKeyDown={handleKeyDown}
-        onContentChange={() => props.onChange(textarea.current?.plainText ?? "")}
+        onContentChange={() => {
+          if (!foldingPaste.current) notifyChange();
+        }}
         onSubmit={() => {
           // textarea 的 submit 事件不带值，从内部 buffer 读；粘贴 token 在此展开回原文
           const ta = textarea.current;

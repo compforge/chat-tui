@@ -50,6 +50,9 @@ export interface ComposerSurfaceProps {
   mentions?: (prefix: string) => Candidate[];
   theme: Theme;
   setLocalToast: Dispatch<SetStateAction<ToastMessage | null>>;
+  /** ChatShell 按 protocol 保存的逻辑草稿，用于 textarea 被重建后的恢复。 */
+  initialDraft?: string;
+  onDraftChange?: (text: string) => void;
 }
 
 export const ComposerSurface = memo(function ComposerSurface(
@@ -61,7 +64,7 @@ export const ComposerSurface = memo(function ComposerSurface(
   const queueView = useStoreState(props.store, "queue");
   const setLocalToast = props.setLocalToast;
 
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(() => props.initialDraft ?? "");
   const composer = useRef<ComposerHandle | null>(null);
   const [editingSuggestionId, setEditingSuggestionId] = useState<string | null>(null);
   const [suggIdx, setSuggIdx] = useState(0);
@@ -71,8 +74,9 @@ export const ComposerSurface = memo(function ComposerSurface(
   const resetComposer = useCallback(() => {
     // textarea 自持内部 buffer，draft 只是镜像（供候选推导/按键分层用），两边都要清
     setDraft("");
+    props.onDraftChange?.("");
     composer.current?.clear();
-  }, []);
+  }, [props.onDraftChange]);
 
   // 候选由输入实时推导（/ 行首=命令，@ =引用），无独立状态需要同步
   const trigger = triggerAt(draft);
@@ -130,11 +134,12 @@ export const ComposerSurface = memo(function ComposerSurface(
       }
       setEditingSuggestionId(interaction.id);
       setDraft(interaction.text);
+      props.onDraftChange?.(interaction.text);
       composer.current?.setText(interaction.text);
       composer.current?.focus();
       setLocalToast(null);
     },
-    [draft],
+    [draft, props.onDraftChange],
   );
 
   const send = useCallback(
@@ -237,6 +242,7 @@ export const ComposerSurface = memo(function ComposerSurface(
             if (recalled) {
               releaseEditingSuggestion();
               setDraft(recalled.text);
+              props.onDraftChange?.(recalled.text);
               composer.current?.setText(recalled.text);
               setLocalToast({
                 text: "Recalled queued message; edit and resend",
@@ -250,6 +256,7 @@ export const ComposerSurface = memo(function ComposerSurface(
           if (!entry) return false;
           releaseEditingSuggestion();
           setDraft(entry.text);
+          props.onDraftChange?.(entry.text);
           composer.current?.setText(entry.text);
         },
       },
@@ -268,6 +275,7 @@ export const ComposerSurface = memo(function ComposerSurface(
           if (!entry) return false;
           releaseEditingSuggestion();
           setDraft(entry.text);
+          props.onDraftChange?.(entry.text);
           composer.current?.setText(entry.text);
         },
       },
@@ -306,13 +314,14 @@ export const ComposerSurface = memo(function ComposerSurface(
   // 无需反向通知 ComposerSurface 重新计算锚点。
   const dockBottom = composerHeightFor(draft) + 2;
   const handleComposerChange = useCallback(
-    (text: string) => {
+    (text: string, logicalText: string) => {
       if (text) exitConfirmation.disarm();
       setDraft(text);
+      props.onDraftChange?.(logicalText);
       setSuggDismissed(false);
       setSuggIdx(0);
     },
-    [exitConfirmation.disarm],
+    [exitConfirmation.disarm, props.onDraftChange],
   );
   const handleComposerSubmit = useCallback(
     (text: string) => void send(text),
@@ -336,6 +345,7 @@ export const ComposerSurface = memo(function ComposerSurface(
         if (result.kind === "recalled") {
           releaseEditingSuggestion();
           setDraft(result.text);
+          props.onDraftChange?.(result.text);
           composer.current?.setText(result.text);
           composer.current?.focus();
           setLocalToast({
@@ -356,6 +366,7 @@ export const ComposerSurface = memo(function ComposerSurface(
       draft,
       exitConfirmation.disarm,
       protocol,
+      props.onDraftChange,
       releaseEditingSuggestion,
       setLocalToast,
     ],
@@ -372,6 +383,7 @@ export const ComposerSurface = memo(function ComposerSurface(
       >
         <ComposerEditor
           ref={composer}
+          initialText={draft}
           placeholder={composerView.placeholder}
           focused={!blockingInteraction && !choosingSuggestedInput && !picker && !queueManager}
           busy={busy}

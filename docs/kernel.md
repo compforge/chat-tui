@@ -57,6 +57,8 @@ harness 先把自身事件整理成当前应展示的 State，再通过 Store �
 
 `ChatShell` 只编排 Surface，不订阅具体 State。Parallel 或 Sidecar 内容刷新时，只有
 订阅到新值的 Surface 参与更新；布局没有变化时，Composer 及其输入 buffer 不参与刷新。
+Composer 挂载期间由 OpenTUI textarea buffer 持有编辑正文；ChatShell 仅按 `ChatProtocol`
+对象身份保存可恢复的逻辑草稿，让界面重建不丢输入，同时不把这份临时 UI 状态写入上游 State。
 
 ### Intent 与注入点
 

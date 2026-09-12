@@ -24,7 +24,7 @@ afterEach(() => {
 const multiline = Array.from({ length: 12 }, (_, i) => `line ${i + 1}`).join("\n");
 
 async function mount(props: {
-  onChange?: (text: string) => void;
+  onChange?: (visibleText: string, logicalText: string) => void;
   onSubmit?: (text: string) => void;
   editorRef?: ReturnType<typeof createRef<ComposerHandle>>;
 }) {
@@ -90,6 +90,21 @@ describe("ComposerEditor paste folding", () => {
       `review ${multiline}`,
       "[Pasted #1 ~12 lines]",
     ]);
+  });
+
+  test("reports the full logical draft after folding a large paste", async () => {
+    const drafts: Array<{ visible: string; logical: string }> = [];
+    const setup = await mount({
+      onChange: (visible, logical) => drafts.push({ visible, logical }),
+    });
+
+    await setup.mockInput.pasteBracketedText(multiline);
+    await setup.flush();
+
+    expect(drafts.at(-1)).toEqual({
+      visible: "[Pasted #1 ~12 lines]",
+      logical: multiline,
+    });
   });
 
   test("a small paste keeps the default verbatim behavior", async () => {

@@ -3,6 +3,7 @@
 import type { ClipboardService } from "@opentui/core";
 import { useSelectionHandler } from "@opentui/react";
 import {
+  useCallback,
   useState,
   type ReactNode,
 } from "react";
@@ -23,6 +24,9 @@ import type { ClipPolicy } from "../surfaces/timeline/clip.ts";
 import { TimelineSurface } from "../surfaces/timeline/surface.tsx";
 import { defaultTheme, type Theme } from "../theme.ts";
 import { useTokenSelectionOnDoubleClick } from "./token-selection.ts";
+
+// Draft 是 UI 编辑态，不进入上游 State；protocol identity 给同一聊天壳的重建提供稳定作用域。
+const composerDrafts = new WeakMap<ChatProtocol, string>();
 
 export interface ChatShellProps {
   protocol: ChatProtocol;
@@ -52,6 +56,10 @@ function ChatShellContent(props: ChatShellProps): ReactNode {
   const theme = props.theme ?? defaultTheme;
   const [localToast, setLocalToast] = useState<ToastMessage | null>(null);
   const store = protocol.stateStore;
+  const saveComposerDraft = useCallback((draft: string) => {
+    if (draft) composerDrafts.set(protocol, draft);
+    else composerDrafts.delete(protocol);
+  }, [protocol]);
 
   useSelectionHandler((selection) => {
     const selectedText = selection.getSelectedText();
@@ -87,6 +95,8 @@ function ChatShellContent(props: ChatShellProps): ReactNode {
           mentions={props.mentions}
           theme={theme}
           setLocalToast={setLocalToast}
+          initialDraft={composerDrafts.get(protocol)}
+          onDraftChange={saveComposerDraft}
         />
         <FooterSurface
           store={store}

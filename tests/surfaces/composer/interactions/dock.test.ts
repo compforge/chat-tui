@@ -193,6 +193,90 @@ describe("InteractionDock", () => {
     expect(composerReads).toBe(0);
   });
 
+  test("preserves the draft while a blocking interaction takes and releases focus", async () => {
+    const harness = testProtocol();
+    const { setup, composer } = await mount(harness.protocol);
+
+    setup.mockInput.typeText("half typed");
+    await setup.waitFor(() => composer.plainText === "half typed");
+    harness.stateStore.commit({
+      composer: {
+        interactions: [{
+          id: "approval_1",
+          kind: "approval",
+          blocking: true,
+          cancelResponse: { kind: "cancelled" },
+          approval: {
+            title: "Run command?",
+            options: [{
+              optionId: "allow",
+              name: "Allow",
+              kind: "allow_once",
+            }],
+          },
+        }],
+      },
+    });
+    await setup.flush();
+    expect(composer.plainText).toBe("half typed");
+
+    harness.stateStore.commit({ composer: { interactions: [] } });
+    await setup.flush();
+
+    expect(composer.plainText).toBe("half typed");
+    expect(setup.renderer.currentFocusedRenderable).toBe(composer);
+  });
+
+  test("restores the logical draft when ChatShell is rebuilt", async () => {
+    const harness = testProtocol();
+    const { setup, composer } = await mount(harness.protocol);
+    const pasted = Array.from({ length: 4 }, (_, index) => `line ${index + 1}`).join("\n");
+
+    setup.mockInput.typeText("half typed ");
+    await setup.mockInput.pasteBracketedText(pasted);
+    await setup.waitFor(() => composer.plainText === "half typed [Pasted #1 ~4 lines]");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await setup.flush();
+    mounted?.root.render(createElement("box"));
+    await setup.flush();
+    mounted?.root.render(createElement(ChatShell, {
+      protocol: harness.protocol,
+      commands: [],
+      clipboard: createTestClipboard(),
+    }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await setup.flush();
+
+    const restored = setup.renderer.currentFocusedRenderable;
+    expect(restored).toBeInstanceOf(TextareaRenderable);
+    expect(restored).not.toBe(composer);
+    expect((restored as TextareaRenderable).plainText).toBe(`half typed ${pasted}`);
+    expect(setup.renderer.currentFocusedRenderable).toBe(restored);
+  });
+
+  test("does not restore a draft after it was submitted", async () => {
+    const harness = testProtocol();
+    const { setup, composer } = await mount(harness.protocol);
+
+    setup.mockInput.typeText("send me");
+    await setup.waitFor(() => composer.plainText === "send me");
+    setup.mockInput.pressEnter();
+    await setup.waitFor(() => composer.plainText === "");
+    mounted?.root.render(createElement("box"));
+    await setup.flush();
+    mounted?.root.render(createElement(ChatShell, {
+      protocol: harness.protocol,
+      commands: [],
+      clipboard: createTestClipboard(),
+    }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await setup.flush();
+
+    const restored = setup.renderer.currentFocusedRenderable;
+    expect(restored).toBeInstanceOf(TextareaRenderable);
+    expect((restored as TextareaRenderable).plainText).toBe("");
+  });
+
   test("shows a suggested input with effective key hints without overwriting the composer", async () => {
     const harness = testProtocol({
       composer: {
