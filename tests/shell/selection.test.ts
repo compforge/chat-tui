@@ -102,7 +102,7 @@ describe("double-click selection", () => {
     const visibleText = rendererItems(setup)
       .filter((renderable): renderable is Renderable & { plainText: string } => "plainText" in renderable)
       .map((renderable) => renderable.plainText);
-    expect(visibleText).toContain("✨ ");
+    expect(visibleText).toContain("❯ ");
     expect(visibleText).toContain("●  ");
     expect(visibleText.some((text) =>
       text.includes("you >") || text.includes("codex >") || text.includes("claude ·")
