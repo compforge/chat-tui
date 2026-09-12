@@ -49,6 +49,7 @@ class MyHarness implements ChatProtocol {
   searchPicker(id: string, query: string) { /* refresh a remote-search picker */ }
   resolvePicker(id: string, value: string | null) { /* … */ }
   resolveInteraction(id: string, response: InteractionResponse) { /* … */ }
+  openUrl(url: string) { /* validate and open the selected sidecar URL */ }
 }
 
 const renderer = await createCliRenderer({ exitOnCtrlC: false, autoFocus: false });
@@ -82,7 +83,7 @@ bun examples/echo.tsx
 - **Optional Parallel region** — current parallel work stays in compact items below the footer, outside the historical timeline
 - **Human interaction** — searchable pickers, permission decisions, structured questions, and suggested inputs anchored near the composer
 - **Independent Surfaces** — Timeline, Composer, Activity, Footer, optional Parallel, and Sidecar subscribe only to the State they consume
-- **Optional sidecar** — generic auxiliary State renders beside the main chat when space allows, or as an explicit overlay
+- **Optional sidecar** — generic auxiliary State renders beside the main chat when space allows, or as an explicit overlay; linked items support keyboard selection and host-owned opening
 - **Composable UI** — use `ChatShell` for the complete interface or compose exported Surfaces and focused building blocks with an injectable theme
 - **Native clipboard and selection** — OpenTUI owns host/terminal clipboard fallback plus click-repeat semantics; chat-tui only adds product token boundaries for paths, URLs, and IDs
 - **Layered input routing** — components declare semantic behaviors in focus-aware layers; one matched behavior consumes a contested key. All default keys live in one exported definitions table (`defaultKeybinds`), with per-action user overrides via the `keybinds` prop
@@ -102,6 +103,7 @@ provider supports and how each operation maps to it.
 | Queue and history | Compact preview plus an optional item manager emit recall, discard, reorder, and dispatch-now intents; queue ownership and same-turn steering remain in the harness |
 | Generic choice | Picker supports static options, local filtering, and harness-owned remote search |
 | Human interaction | Permission, structured question, and suggested-input variants share `resolveInteraction()`; each active item declares its exact `cancelResponse`, while chat-tui maps Esc to that semantic cancel intent |
+| Sidecar links | `Alt+↑/↓` selects a linked item and `Ctrl+Enter` emits optional `openUrl()`; the harness validates and opens it with host capabilities |
 
 ### Harness → user
 

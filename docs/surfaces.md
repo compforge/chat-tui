@@ -116,8 +116,10 @@ Footer 同时承载两种寿命的信息：Toast 是短寿命操作回执或错�
 
 Sidecar 是通用、可选的辅助展示面，与主对话并列而不是放在 Footer 下方。接入方把 Board、
 上下文或诊断等领域状态整理成 `SidecarState`；item 的可选 `url` 使用终端原生 hyperlink
-渲染，具体打开手势由终端决定。第二行 detail 只在实际溢出时横向滚动，未溢出的文本保持
-静态。chat-tui 只展示通用 section/item，不理解其业务语义。
+渲染，具体鼠标打开手势由终端决定。接入方提供 `openUrl` intent 时，Sidecar 同时用
+`Alt+↑/↓` 选择链接、用 `Ctrl+Enter` 打开；选中项随仍存在的 item 保持，并自动滚入视口。
+第二行 detail 只在实际溢出时横向滚动，未溢出的文本保持静态。chat-tui 只展示通用
+section/item，不理解其业务语义，也不直接调用宿主桌面能力。
 
 - 没有有效条目时完全隐藏，不保留空框或宽度。
 - 空间充足时以内联侧栏展示；空间不足时默认隐藏，避免挤压 Timeline 和 Composer。

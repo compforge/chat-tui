@@ -15,6 +15,7 @@ import {
   visibleSidecarSections,
   type SidecarState,
 } from "../../../src/index.ts";
+import { sidecarLinks } from "../../../src/surfaces/sidecar/layout.ts";
 import {
   marqueeContent,
   nextMarqueeOffset,
@@ -73,6 +74,27 @@ describe("sidecar", () => {
 
   test("uses an overlay when explicitly opened on a narrow terminal", () => {
     expect(sidecarLayout({ ...populated, mode: "open" }, 80)).toBe("overlay");
+  });
+
+  test("flattens only linked items in visual order", () => {
+    expect(sidecarLinks({
+      sections: [
+        {
+          id: "first",
+          items: [
+            { id: "plain", title: "Plain" },
+            { id: "one", title: "One", url: "https://example.com/one" },
+          ],
+        },
+        {
+          id: "second",
+          items: [{ id: "two", title: "Two", url: "https://example.com/two" }],
+        },
+      ],
+    })).toEqual([
+      { key: JSON.stringify(["first", "one"]), url: "https://example.com/one" },
+      { key: JSON.stringify(["second", "two"]), url: "https://example.com/two" },
+    ]);
   });
 
   test("explicit hidden mode wins on wide terminals", () => {

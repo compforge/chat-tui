@@ -31,6 +31,12 @@ describe("defaultKeybinds", () => {
     expect(keysOf("composer.cycle-mode")).toEqual(["shift+tab"]);
     expect(keysOf("composer.history-previous")).toEqual(["up"]);
     expect(keysOf("composer.history-next")).toEqual(["down"]);
+    expect(keysOf("sidecar.previous-link")).toEqual(["alt+up"]);
+    expect(keysOf("sidecar.next-link")).toEqual(["alt+down"]);
+    expect(keysOf("sidecar.open-link")).toEqual([
+      "ctrl+return",
+      "ctrl+kpenter",
+    ]);
   });
 
   test("copy-last-message does not collide with any other default key", () => {

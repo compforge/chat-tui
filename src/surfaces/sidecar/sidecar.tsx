@@ -1,5 +1,8 @@
+import type { ScrollBoxRenderable } from "@opentui/core";
 import {
   Fragment,
+  useEffect,
+  useRef,
   type ReactNode,
 } from "react";
 
@@ -11,8 +14,13 @@ import type { Theme } from "../../theme.ts";
 import { MarqueeText } from "../../terminal/marquee.tsx";
 import {
   SIDECAR_WIDTH,
+  sidecarItemKey,
   visibleSidecarSections,
 } from "./layout.ts";
+
+function sidecarRowId(linkKey: string): string {
+  return `sidecar-item:${linkKey}`;
+}
 
 function toneColor(tone: SidecarItemTone | undefined, theme: Theme): string {
   switch (tone) {
@@ -33,11 +41,19 @@ export interface SidecarProps {
   state: SidecarState;
   theme: Theme;
   overlay?: boolean;
+  selectedLinkKey?: string;
+  linkHelp?: string;
 }
 
 /** 只渲染接入方提供的展示快照，不解释条目背后的 agent 或业务语义。 */
 export function Sidecar(props: SidecarProps): ReactNode {
   const sections = visibleSidecarSections(props.state);
+  const scrollbox = useRef<ScrollBoxRenderable>(null);
+  useEffect(() => {
+    if (props.selectedLinkKey) {
+      scrollbox.current?.scrollChildIntoView(sidecarRowId(props.selectedLinkKey));
+    }
+  }, [props.selectedLinkKey]);
   if (sections.length === 0) return null;
 
   return (
@@ -62,7 +78,12 @@ export function Sidecar(props: SidecarProps): ReactNode {
         </text>
         {props.overlay ? <text fg={props.theme.dim}>Esc close</text> : null}
       </box>
-      <scrollbox style={{ flexGrow: 1, marginTop: 1, paddingRight: 1 }} focused={false}>
+      {props.linkHelp ? <text fg={props.theme.dim}>{props.linkHelp}</text> : null}
+      <scrollbox
+        ref={scrollbox}
+        style={{ flexGrow: 1, marginTop: 1, paddingRight: 1 }}
+        focused={false}
+      >
         {sections.map((section, sectionIndex) => (
           <Fragment key={section.id}>
             {sectionIndex > 0 ? <box style={{ height: 1, flexShrink: 0 }} /> : null}
@@ -71,30 +92,39 @@ export function Sidecar(props: SidecarProps): ReactNode {
                 <b>{section.title}</b>
               </text>
             ) : null}
-            {section.items.map((item) => (
-              <box key={item.id} style={{ flexDirection: "column", flexShrink: 0 }}>
+            {section.items.map((item) => {
+              const linkKey = sidecarItemKey(section.id, item.id);
+              const selected = linkKey === props.selectedLinkKey;
+              return (
                 <box
-                  style={{
-                    flexDirection: "row",
-                    flexWrap: "wrap",
-                    justifyContent: "space-between",
-                    columnGap: 1,
-                  }}
+                  key={item.id}
+                  id={sidecarRowId(linkKey)}
+                  style={{ flexDirection: "column", flexShrink: 0 }}
                 >
-                  <text fg={props.theme.user} wrapMode="word" style={{ flexShrink: 0 }}>
-                    {item.url ? <a href={item.url}>{item.title}</a> : item.title}
-                  </text>
-                  {item.status ? (
-                    <text fg={toneColor(item.tone, props.theme)} style={{ flexShrink: 0 }}>
-                      {item.status}
+                  <box
+                    style={{
+                      flexDirection: "row",
+                      flexWrap: "wrap",
+                      justifyContent: "space-between",
+                      columnGap: 1,
+                    }}
+                  >
+                    <text fg={props.theme.user} wrapMode="word" style={{ flexShrink: 0 }}>
+                      {props.selectedLinkKey ? (selected ? "▸ " : "  ") : null}
+                      {item.url ? <a href={item.url}>{item.title}</a> : item.title}
                     </text>
+                    {item.status ? (
+                      <text fg={toneColor(item.tone, props.theme)} style={{ flexShrink: 0 }}>
+                        {item.status}
+                      </text>
+                    ) : null}
+                  </box>
+                  {item.detail ? (
+                    <MarqueeText text={item.detail} color={props.theme.dim} />
                   ) : null}
                 </box>
-                {item.detail ? (
-                  <MarqueeText text={item.detail} color={props.theme.dim} />
-                ) : null}
-              </box>
-            ))}
+              );
+            })}
           </Fragment>
         ))}
       </scrollbox>

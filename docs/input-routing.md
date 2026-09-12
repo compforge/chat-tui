@@ -54,6 +54,8 @@ InteractionDock、Picker、Suggestions、Question editor 等组件声明自己�
 
 能够同时活跃且争用同一按键的 context 必须使用不同层级；不能依赖 React effect 或 handler
 注册顺序决定胜负。只有确实希望多个行为连续执行时才显式使用 keymap 的 fallthrough。
+内联 Sidecar 的链接导航属于 `surface`，因此不会压过 Picker、Interaction 等更高层；Sidecar
+作为 overlay 时沿用 `overlay` 层，保证同一组选择和打开键位仍作用于最上层可见内容。
 
 ### 键位的单一事实来源
 

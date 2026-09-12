@@ -46,6 +46,8 @@ export interface ChatProtocol {
   resolveInteraction(id: string, response: InteractionResponse): void | Promise<void>;
   /** 窄屏 overlay 的 Esc 关闭意图；显示状态仍由下一份视图快照决定。 */
   dismissSidecar?(): void;
+  /** 打开用户在 Sidecar 中显式选中的链接；宿主负责校验 URL 并调用平台能力。 */
+  openUrl?(url: string): void | Promise<void>;
   /** ↑ 召回最近一条排队输入（同时应将其从队列移除）；无可召回返回 null */
   recallQueued?(): { text: string } | null;
   /** Interactive queue-pane intent; the harness owns validation and lifecycle changes. */

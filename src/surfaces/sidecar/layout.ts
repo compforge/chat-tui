@@ -8,6 +8,25 @@ export const SIDECAR_BREAKPOINT = 120;
 
 export type SidecarLayout = "hidden" | "inline" | "overlay";
 
+export interface SidecarLink {
+  key: string;
+  url: string;
+}
+
+export function sidecarItemKey(sectionId: string, itemId: string): string {
+  return JSON.stringify([sectionId, itemId]);
+}
+
+export function sidecarLinks(state?: SidecarState): SidecarLink[] {
+  return visibleSidecarSections(state).flatMap((section) =>
+    section.items.flatMap((item) =>
+      item.url
+        ? [{ key: sidecarItemKey(section.id, item.id), url: item.url }]
+        : []
+    )
+  );
+}
+
 export function visibleSidecarSections(
   state?: SidecarState,
 ): SidecarSection[] {

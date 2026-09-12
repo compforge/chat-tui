@@ -99,7 +99,12 @@ function ChatShellContent(props: ChatShellProps): ReactNode {
       <SidecarSurface
         store={store}
         theme={theme}
-        onDismiss={protocol.dismissSidecar}
+        onDismiss={protocol.dismissSidecar
+          ? () => protocol.dismissSidecar?.()
+          : undefined}
+        onOpenUrl={protocol.openUrl
+          ? (url) => protocol.openUrl?.(url)
+          : undefined}
       />
     </box>
   );

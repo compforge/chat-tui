@@ -41,6 +41,7 @@ function testProtocol(initial: Partial<ChatState> = {}) {
   const turnCancels: string[] = [];
   const pickerResults: Array<{ id: string; value: string | null }> = [];
   const sidecarDismisses: string[] = [];
+  const openedUrls: string[] = [];
   const exits: string[] = [];
   const stateStore = createChatStore({
     timeline: { items: [] },
@@ -67,6 +68,9 @@ function testProtocol(initial: Partial<ChatState> = {}) {
     dismissSidecar: () => {
       sidecarDismisses.push("dismiss");
     },
+    openUrl: (url) => {
+      openedUrls.push(url);
+    },
     resolveInteraction(id, response) {
       responses.push({ id, response });
     },
@@ -77,6 +81,7 @@ function testProtocol(initial: Partial<ChatState> = {}) {
     turnCancels,
     pickerResults,
     sidecarDismisses,
+    openedUrls,
     exits,
     stateStore,
   };
@@ -512,5 +517,54 @@ describe("InteractionDock", () => {
 
     expect(harness.sidecarDismisses).toEqual(["dismiss"]);
     expect(harness.responses).toEqual([]);
+  });
+
+  test("selects and opens sidecar links without stealing composer keys", async () => {
+    const harness = testProtocol({
+      sidecar: {
+        title: "Board",
+        mode: "open",
+        sections: [{
+          id: "pull-requests",
+          items: [
+            {
+              id: "pr-1",
+              title: "PR #1",
+              url: "https://example.com/pulls/1",
+            },
+            { id: "summary", title: "No link here" },
+            {
+              id: "pr-2",
+              title: "PR #2",
+              url: "https://example.com/pulls/2",
+            },
+          ],
+        }],
+      },
+    });
+    const { setup, composer } = await mount(harness.protocol, {
+      width: 140,
+      height: 24,
+    });
+
+    setup.mockInput.pressArrow("down");
+    await setup.flush();
+    expect(harness.openedUrls).toEqual([]);
+    expect(composer.plainText).toBe("");
+
+    setup.mockInput.pressEnter({ ctrl: true });
+    await setup.waitFor(() => harness.openedUrls.length === 1);
+    setup.mockInput.pressArrow("down", { meta: true });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await setup.flush();
+    expect(setup.captureCharFrame()).toContain("▸ PR #2");
+    setup.mockInput.pressEnter({ ctrl: true });
+    await setup.waitFor(() => harness.openedUrls.length === 2);
+
+    expect(harness.openedUrls).toEqual([
+      "https://example.com/pulls/1",
+      "https://example.com/pulls/2",
+    ]);
+    expect(setup.captureCharFrame()).toContain("▸ PR #2");
   });
 });

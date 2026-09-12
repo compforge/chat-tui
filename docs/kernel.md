@@ -61,7 +61,7 @@ harness 先把自身事件整理成当前应展示的 State，再通过 Store �
 ### Intent 与注入点
 
 - `submit`、`command`、`cancel` 与 `exit` 表达基础输入意图。
-- Picker、QueuePane 与 Interaction 通过稳定 ID 返回结果；Sidecar 关闭和历史导航使用独立 intent。
+- Picker、QueuePane 与 Interaction 通过稳定 ID 返回结果；Sidecar 关闭、链接打开和历史导航使用独立 intent。
   请求执行、排队、取消和过期结果处理归 harness。
 - slash 命令表、`@` 引用源、theme 与裁剪策略由接入方注入，chat-tui 不内置具体产品或
   provider 语义。

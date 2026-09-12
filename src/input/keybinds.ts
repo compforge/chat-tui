@@ -42,6 +42,9 @@ export type KeybindAction =
   | "suggested-input.use"
   | "suggested-input.dismiss"
   | "question.cancel-edit"
+  | "sidecar.previous-link"
+  | "sidecar.next-link"
+  | "sidecar.open-link"
   | "sidecar.dismiss";
 
 export interface KeybindDefinition {
@@ -243,6 +246,24 @@ export const defaultKeybinds: readonly KeybindDefinition[] = [
     keys: ["escape"],
     desc: "Return to question choices",
     group: "Question",
+  },
+  {
+    action: "sidecar.previous-link",
+    keys: ["alt+up"],
+    desc: "Select previous sidecar link",
+    group: "Sidecar",
+  },
+  {
+    action: "sidecar.next-link",
+    keys: ["alt+down"],
+    desc: "Select next sidecar link",
+    group: "Sidecar",
+  },
+  {
+    action: "sidecar.open-link",
+    keys: ["ctrl+return", "ctrl+kpenter"],
+    desc: "Open selected sidecar link",
+    group: "Sidecar",
   },
   {
     action: "sidecar.dismiss",
