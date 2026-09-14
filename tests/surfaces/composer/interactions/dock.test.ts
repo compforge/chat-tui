@@ -475,6 +475,30 @@ describe("InteractionDock", () => {
     expect(harness.exits).toEqual([]);
   });
 
+  test("emits a cancel intent for a cancellable queue item", async () => {
+    const harness = testProtocol({
+      queue: {
+        manager: { title: "Queued follow-ups" },
+        items: [{
+          id: "m_pending",
+          text: "pending native input",
+          actions: ["cancel"],
+        }],
+      },
+    });
+    const intents: QueueIntent[] = [];
+    harness.protocol.resolveQueue = async (intent) => {
+      intents.push(intent);
+      return { kind: "accepted" };
+    };
+    const { setup } = await mount(harness.protocol, { width: 100, height: 30 });
+
+    setup.mockInput.pressKey("c");
+    await setup.waitFor(() => intents.length === 1);
+
+    expect(intents).toEqual([{ kind: "cancel", itemId: "m_pending" }]);
+  });
+
   test("the topmost sidecar overlay handles Esc before an interaction", async () => {
     const harness = testProtocol({
       composer: {

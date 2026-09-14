@@ -20,6 +20,7 @@ describe("queueActionAvailable", () => {
       actions: ["recall", "move-up"] as const,
     };
     expect(queueActionAvailable(item, "recall")).toBe(true);
+    expect(queueActionAvailable({ ...item, actions: ["cancel"] }, "cancel")).toBe(true);
     expect(queueActionAvailable(item, "dispatch-now")).toBe(false);
   });
 

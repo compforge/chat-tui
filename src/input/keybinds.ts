@@ -29,6 +29,7 @@ export type KeybindAction =
   | "queue.previous"
   | "queue.next"
   | "queue.recall"
+  | "queue.cancel-item"
   | "queue.discard"
   | "queue.move-up"
   | "queue.move-down"
@@ -164,6 +165,12 @@ export const defaultKeybinds: readonly KeybindDefinition[] = [
     action: "queue.recall",
     keys: ["return", "kpenter"],
     desc: "Recall selected input to composer",
+    group: "Queue",
+  },
+  {
+    action: "queue.cancel-item",
+    keys: ["c"],
+    desc: "Cancel selected pending input",
     group: "Queue",
   },
   {
