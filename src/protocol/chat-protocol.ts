@@ -13,6 +13,7 @@ import type { InteractionResponse } from "./interaction.ts";
 export type QueueIntent =
   | { kind: "close" }
   | { kind: "recall"; itemId: string }
+  | { kind: "cancel"; itemId: string }
   | { kind: "discard"; itemId: string }
   | { kind: "move"; itemId: string; direction: "up" | "down" }
   | { kind: "dispatch-now"; itemId: string };

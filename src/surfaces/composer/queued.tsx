@@ -143,6 +143,13 @@ export function QueuePane(props: QueuePaneProps): ReactNode {
         },
       },
       {
+        name: "queue.cancel-item",
+        run: () => {
+          if (!selected || !queueActionAvailable(selected, "cancel")) return false;
+          run({ kind: "cancel", itemId: selected.id });
+        },
+      },
+      {
         name: "queue.discard",
         run: () => {
           if (!selected || !queueActionAvailable(selected, "discard")) return false;
@@ -177,6 +184,7 @@ export function QueuePane(props: QueuePaneProps): ReactNode {
         "queue.previous",
         "queue.next",
         "queue.recall",
+        "queue.cancel-item",
         "queue.discard",
         "queue.move-up",
         "queue.move-down",
@@ -195,12 +203,14 @@ export function QueuePane(props: QueuePaneProps): ReactNode {
     keybindHint("queue.move-down", keybinds),
   ].filter((hint): hint is string => Boolean(hint)).join("/");
   const recallHint = keybindHint("queue.recall", keybinds);
+  const cancelHint = keybindHint("queue.cancel-item", keybinds);
   const discardHint = keybindHint("queue.discard", keybinds);
   const dispatchHint = keybindHint("queue.dispatch-now", keybinds);
   const closeHint = keybindHint("queue.cancel", keybinds);
   const help = [
     selectHint ? `${selectHint} select` : undefined,
     recallHint ? `${recallHint} recall` : undefined,
+    cancelHint ? `${cancelHint} cancel` : undefined,
     discardHint ? `${discardHint} discard` : undefined,
     moveHint ? `${moveHint} reorder` : undefined,
     dispatchHint ? `${dispatchHint} dispatch` : undefined,

@@ -1,6 +1,7 @@
 /** Queue actions are capabilities supplied by the harness for each item. */
 export type QueueItemAction =
   | "recall"
+  | "cancel"
   | "discard"
   | "move-up"
   | "move-down"
